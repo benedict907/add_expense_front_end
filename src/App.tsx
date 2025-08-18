@@ -15,7 +15,6 @@ export default function App() {
     amount: 0,
   });
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
