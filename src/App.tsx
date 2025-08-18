@@ -26,7 +26,7 @@ export default function App() {
 
   const handleSubmit = async(e: FormEvent) => {
     e.preventDefault();
-     await fetch("http://127.0.0.1:8000/add-expense", {
+     await fetch("https://add-expense-back-end.onrender.com/add-expense", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
