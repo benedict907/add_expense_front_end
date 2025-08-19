@@ -9,7 +9,7 @@ type Expense = {
 
 export default function App() {
   const [form, setForm] = useState<Expense>({
-    date: "",
+    date: new Date().toISOString().split('T')[0], // Default to today's date
     category: "",
     description: "",
     amount: 0,
@@ -18,27 +18,40 @@ export default function App() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    console.log({ name, value })
     setForm((prev) => ({
       ...prev,
       [name]: name === "amount" ? Number(value) : value,
     }));
   };
 
-  const handleSubmit = async(e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-     await fetch("https://add-expense-back-end.onrender.com/add-expense", {
+    if (!form.date || !form.description || form.amount <= 0) {
+      alert("Please fill all fields correctly");
+      return;
+    }
+    const apiUrl = import.meta.env.VITE_API_URL;
+    console.log("API URL:", apiUrl);
+
+    await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
-    }).then(resp=>{
-      setForm({ date: "", category: "", description: "", amount: 0 });
-      console.log('resss',resp)
-    }).catch(e=>{
-      console.log('sdfsdf',e)
+    }).then(resp => {
+      setForm({ date: new Date().toISOString().split('T')[0], category: "", description: "", amount: 0 });
+      console.log('resss', resp)
+      if(resp.status !== 200) {
+        throw new Error("Failed to add expense");
+      }else{
+        alert("Expense added successfully!");
+      }
+     
+    }).catch(e => {
+      alert(e)
+      console.log('sdfsdf', e)
     });
-    // if (!form.date || !form.description || !form.amount) return;
-    // setExpenses((prev) => [...prev, form]);
-    // setForm({ date: "", category: "", description: "", amount: 0 });
+
   };
 
   return (
@@ -55,13 +68,13 @@ export default function App() {
           <input
             type="date"
             name="date"
-            value={form.date}
+            value={form.date ? form.date : new Date().toDateString()}
             onChange={handleChange}
             className="w-full border p-2 rounded-lg"
           />
         </div>
 
-        
+
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Description</label>
           <input
