@@ -56,7 +56,7 @@ export default function App() {
       alert("Please fill all fields correctly");
       return;
     }
-
+    setLoading(true);
 
     await fetch(apiUrl + "/add-expense", {
       method: "POST",
@@ -74,6 +74,7 @@ export default function App() {
 
     }).catch(e => {
       alert(e)
+      setLoading(false);
       console.log('sdfsdf', e)
     });
 
