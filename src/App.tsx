@@ -41,7 +41,7 @@ export default function App() {
 
   }, [])
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     console.log({ name, value })
     setForm((prev) => ({
@@ -131,7 +131,22 @@ export default function App() {
             className="w-full border p-2 rounded-lg"
           />
         </div>
-
+        <div className="mb-4">
+          <label htmlFor="category" className="block text-sm font-medium mb-1">Category</label>
+          <select
+            id="category"
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="w-full border p-2 rounded-lg"
+          >
+            <option value="">Select category</option>
+            <option value="Kotak">Kotak Card</option>
+            <option value="ICICI">ICICI</option>
+            <option value="SBI">SBI</option>
+            <option value="HDFC">HDFC</option>
+          </select>
+        </div>
         <button
           type="submit"
           className="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 active:scale-95 transition"
