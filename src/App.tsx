@@ -52,7 +52,7 @@ export default function App() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.date || !form.description || form.amount <= 0) {
+    if (!form.date || !form.description || form.amount <= 0 || form.category === "") {
       alert("Please fill all fields correctly");
       return;
     }
@@ -145,6 +145,8 @@ export default function App() {
             <option value="ICICI">ICICI</option>
             <option value="SBI">SBI</option>
             <option value="HDFC">HDFC</option>
+            <option value="MISC">MISC</option>
+            <option value="GROCERY">GROCERY</option>
           </select>
         </div>
         <button
