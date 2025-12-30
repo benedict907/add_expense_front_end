@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import Loader from "./Loader"
 
 
@@ -22,7 +23,7 @@ export default function App() {
   const apiUrl = import.meta.env.VITE_API_URL;
   console.log("API URL:", apiUrl);
   useEffect(() => {
-    fetch(apiUrl, {
+    fetch(apiUrl || 'http://localhost:3001', {
       method: "GET",
       headers: { "Content-Type": "application/json" }
     }).then(resp => {
@@ -36,7 +37,7 @@ export default function App() {
 
     }).catch(e => {
       alert(e)
-      console.log('sdfsdf', e)
+      console.log('API Connection Error:', e)
     });
 
   }, [])
@@ -58,15 +59,19 @@ export default function App() {
     }
     setLoading(true);
 
-    await fetch(apiUrl + "/add-expense", {
+    await fetch((apiUrl || 'http://localhost:3001') + "/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        type: 'expense',
+        note: form.description
+      }),
     }).then(resp => {
       setForm({ date: new Date().toISOString().split('T')[0], category: "", description: "", amount: 0 });
-      console.log('resss', resp)
+      console.log('Response:', resp)
       setLoading(false);
-      if (resp.status !== 200) {
+      if (resp.status !== 201) {
         throw new Error("Failed to add expense");
       } else {
         alert("Expense added successfully!");
@@ -75,7 +80,7 @@ export default function App() {
     }).catch(e => {
       alert(e)
       setLoading(false);
-      console.log('sdfsdf', e)
+      console.log('API Error:', e)
     });
 
   };
@@ -84,7 +89,15 @@ export default function App() {
 
 
     loading ? <Loader /> : (<div className="min-h-screen bg-red-100 flex flex-col items-center pt-6">
-      <h1 className="text-3xl font-bold text-blue-600 mb-6">💰 Expense Tracker</h1>
+      <div className="w-full max-w-md flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-blue-600">💰 Expense Tracker</h1>
+        <Link 
+          to="/budget" 
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Budget Dashboard
+        </Link>
+      </div>
       {connected ? <div className="w-full bg-green-500 flex justify-center p-2 mb-4 text-white font-semibold shadow-md">
         Online
       </div> : null}
