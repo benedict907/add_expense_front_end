@@ -1,64 +1,54 @@
-import React, { useState } from 'react';
-import { useBudget } from '../context/BudgetContext';
+import React, { useState } from "react";
+import { useBudget } from "../context/BudgetContext";
+import { CATEGORIES } from "../constants";
 
 const ExpenseForm = () => {
   const { addExpense } = useBudget();
   const [formData, setFormData] = useState({
-    category: '',
-    amount: '',
-    type: 'expense',
-    date: new Date().toISOString().split('T')[0],
-    note: ''
+    category: "",
+    amount: "",
+    type: "expense",
+    date: new Date().toISOString().split("T")[0],
+    note: "",
   });
-
-  const categories = [
-    'Groceries',
-    'Transportation',
-    'Entertainment',
-    'Healthcare',
-    'Utilities',
-    'Shopping',
-    'Food & Dining',
-    'Travel',
-    'Education',
-    'Miscellaneous'
-  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === 'amount' ? parseFloat(value) || '' : value
+      [name]: name === "amount" ? parseFloat(value) || "" : value,
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!formData.category || !formData.amount || formData.amount <= 0) {
-      alert('Please fill in all required fields with valid values');
+      alert("Please fill in all required fields with valid values");
       return;
     }
 
     addExpense({
       ...formData,
-      amount: parseFloat(formData.amount)
+      amount: parseFloat(formData.amount),
     });
 
     // Reset form
     setFormData({
-      category: '',
-      amount: '',
-      type: 'expense',
-      date: new Date().toISOString().split('T')[0],
-      note: ''
+      category: "",
+      amount: "",
+      type: "expense",
+      date: new Date().toISOString().split("T")[0],
+      note: "",
     });
   };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Expense/Income</h2>
-      
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        Add Expense/Income
+      </h2>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -87,8 +77,10 @@ const ExpenseForm = () => {
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select category</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
             ))}
           </select>
         </div>
@@ -140,12 +132,12 @@ const ExpenseForm = () => {
         <button
           type="submit"
           className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-            formData.type === 'expense'
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-green-600 hover:bg-green-700 text-white'
+            formData.type === "expense"
+              ? "bg-red-600 hover:bg-red-700 text-white"
+              : "bg-green-600 hover:bg-green-700 text-white"
           }`}
         >
-          Add {formData.type === 'expense' ? 'Expense' : 'Income'}
+          Add {formData.type === "expense" ? "Expense" : "Income"}
         </button>
       </form>
     </div>

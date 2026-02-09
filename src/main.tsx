@@ -12,8 +12,8 @@ createRoot(document.getElementById('root')!).render(
     <Provider store={store}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/budget" element={<BudgetDashboard />} />
+          <Route path="/" element={<BudgetDashboard />} />
+          <Route path="/add" element={<App />} />
         </Routes>
       </BrowserRouter>
     </Provider>

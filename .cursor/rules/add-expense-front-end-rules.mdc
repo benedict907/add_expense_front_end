@@ -1,0 +1,18 @@
+---
+description:
+globs:
+alwaysApply: true
+rules:
+  - "Always use React functional components with hooks (useState, useEffect)."
+  - "Prefer controlled components for form elements (dropdowns, inputs)."
+  - "When editing table cells, use click-to-edit behavior and update state immutably."
+  - "Use descriptive variable names (e.g., `selectedStatus`, `editingCellIndex`)."
+  - "Use TailwindCSS for any new UI styling, with semantic class names."
+  - "Keep components small and reusable. Extract dropdowns into separate components if needed."
+  - "Do not use deprecated React features like class components or UNSAFE_ lifecycle methods."
+  - "Write code with TypeScript types if the file already uses TypeScript."
+  - "Keep code DRY and avoid duplicating logic. Use helper functions if needed."
+  - "When making changes, update only relevant parts of the code and avoid breaking existing functionality."
+
+
+---

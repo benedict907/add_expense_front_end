@@ -1,7 +1,8 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import Loader from "./Loader"
-
+import { ref, push, onValue } from "firebase/database";
+import { firebaseDb } from "./firebase";
+import Loader from "./Loader";
 
 type Expense = {
   date: string;
@@ -10,9 +11,11 @@ type Expense = {
   amount: number;
 };
 
+const EXPENSES_REF_KEY = "expenses";
+
 export default function App() {
   const [form, setForm] = useState<Expense>({
-    date: new Date().toISOString().split('T')[0], // Default to today's date
+    date: new Date().toISOString().split("T")[0],
     category: "",
     description: "",
     amount: 0,
@@ -20,27 +23,15 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL;
-  console.log("API URL:", apiUrl);
+  // Use Firebase Realtime Database .info/connected to show online status (only when configured)
   useEffect(() => {
-    fetch(apiUrl || 'http://localhost:3001', {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    }).then(resp => {
-      if (resp.status !== 200) {
-        setConnected(false);
-        throw new Error("Failed to Connect to API");
-      } else {
-        setConnected(true);
-        console.log("Connection made successfully!");
-      }
-
-    }).catch(e => {
-      alert(e)
-      console.log('API Connection Error:', e)
+    if (!firebaseDb) return;
+    const connectedRef = ref(firebaseDb, ".info/connected");
+    const unsub = onValue(connectedRef, (snap) => {
+      setConnected(snap.val() === true);
     });
-
-  }, [])
+    return () => unsub();
+  }, []);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -57,32 +48,30 @@ export default function App() {
       alert("Please fill all fields correctly");
       return;
     }
+    if (!firebaseDb) {
+      alert("Firebase is not configured. Add your credentials to .env (see .env.example).");
+      return;
+    }
     setLoading(true);
-
-    await fetch((apiUrl || 'http://localhost:3001') + "/api/expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const expensesRef = ref(firebaseDb, EXPENSES_REF_KEY);
+      await push(expensesRef, {
         ...form,
-        type: 'expense',
-        note: form.description
-      }),
-    }).then(resp => {
-      setForm({ date: new Date().toISOString().split('T')[0], category: "", description: "", amount: 0 });
-      console.log('Response:', resp)
+        createdAt: Date.now(),
+      });
+      setForm({
+        date: new Date().toISOString().split("T")[0],
+        category: "",
+        description: "",
+        amount: 0,
+      });
+      alert("Expense added successfully!");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add expense");
+      console.error("Firebase error:", err);
+    } finally {
       setLoading(false);
-      if (resp.status !== 201) {
-        throw new Error("Failed to add expense");
-      } else {
-        alert("Expense added successfully!");
-      }
-
-    }).catch(e => {
-      alert(e)
-      setLoading(false);
-      console.log('API Error:', e)
-    });
-
+    }
   };
 
   return (
@@ -92,10 +81,10 @@ export default function App() {
       <div className="w-full max-w-md flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-blue-600">💰 Expense Tracker</h1>
         <Link 
-          to="/budget" 
+          to="/" 
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Budget Dashboard
+          Back to Dashboard
         </Link>
       </div>
       {connected ? <div className="w-full bg-green-500 flex justify-center p-2 mb-4 text-white font-semibold shadow-md">
