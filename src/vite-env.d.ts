@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
 
+declare module "*.jsx" {
+  import type { ComponentType } from "react";
+  const component: ComponentType;
+  export default component;
+}
+
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   // TODO: Add Firebase credentials in .env (see .env.example)
