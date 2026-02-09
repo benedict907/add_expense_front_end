@@ -275,7 +275,7 @@ const SummaryCard = () => {
       {/* 6-Month Projection */}
       <div className="mt-6">
         <h3 className="text-lg font-medium text-gray-800 mb-3">
-          6-Month Projection
+          6-Month Projections
         </h3>
         <div className="space-y-2">
           {Object.entries(categorySpending).map(([category, spent]) => (
