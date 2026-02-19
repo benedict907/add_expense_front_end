@@ -1,9 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { ref, onValue } from "firebase/database";
 import { firebaseDb } from "../firebase";
+import { useAuth } from "./AuthContext";
 
 const DUES_REF_KEY = "dues";
 const STORAGE_PREFIX = "budgetDues_";
+
+function pathWithRoot(dataRoot, ...segments) {
+  const joined = segments.filter(Boolean).join("/");
+  return dataRoot ? `${dataRoot}/${joined}` : joined;
+}
 
 const DuesContext = createContext({ dues: [], totalDuesAmount: 0 });
 
@@ -32,6 +38,7 @@ export const useDues = () => {
 };
 
 export const DuesProvider = ({ children }) => {
+  const { dataRoot } = useAuth();
   const currentMonthKey = getMonthKey(new Date());
   const [dues, setDues] = useState([]);
 
@@ -41,12 +48,16 @@ export const DuesProvider = ({ children }) => {
       if (stored) setDues(JSON.parse(stored));
       return;
     }
-    const duesRef = ref(firebaseDb, `${DUES_REF_KEY}/${currentMonthKey}`);
+    if (!dataRoot) return;
+    const duesRef = ref(
+      firebaseDb,
+      pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey)
+    );
     const unsub = onValue(duesRef, (snapshot) => {
       setDues(snapshotToDues(snapshot));
     });
     return () => unsub();
-  }, [currentMonthKey]);
+  }, [currentMonthKey, dataRoot]);
 
   const setDuesFromLocal = (nextDues) => {
     if (!firebaseDb) setDues(Array.isArray(nextDues) ? nextDues : []);

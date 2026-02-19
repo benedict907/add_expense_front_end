@@ -271,26 +271,6 @@ const SummaryCard = () => {
           })}
         </div>
       </div>
-
-      {/* 6-Month Projection */}
-      <div className="mt-6">
-        <h3 className="text-lg font-medium text-gray-800 mb-3">
-          6-Month Projections
-        </h3>
-        <div className="space-y-2">
-          {Object.entries(categorySpending).map(([category, spent]) => (
-            <div
-              key={category}
-              className="flex justify-between items-center p-2 bg-gray-50 rounded"
-            >
-              <span className="text-sm text-gray-600">{category}</span>
-              <span className="text-sm font-medium text-gray-800">
-                {formatAmount(getSixMonthProjection(category))}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };

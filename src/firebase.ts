@@ -1,5 +1,6 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getDatabase, type Database } from "firebase/database";
+import { getAuth, type Auth } from "firebase/auth";
 
 // TODO: Add your Firebase credentials to .env (see .env.example).
 // Get these from Firebase Console → Project settings → General → Your apps.
@@ -23,18 +24,25 @@ const hasRequiredConfig =
 let app: FirebaseApp | null = null;
 let db: Database | null = null;
 
-function initFirebase(): { app: FirebaseApp | null; db: Database | null } {
+let auth: Auth | null = null;
+
+function initFirebase(): {
+  app: FirebaseApp | null;
+  db: Database | null;
+  auth: Auth | null;
+} {
   if (!hasRequiredConfig) {
     console.warn(
       "[Firebase] Missing credentials. Add VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_DATABASE_URL (and other VITE_FIREBASE_* vars) to .env — see .env.example"
     );
-    return { app: null, db: null };
+    return { app: null, db: null, auth: null };
   }
-  if (app != null) return { app, db };
+  if (app != null) return { app, db, auth };
   app = initializeApp(firebaseConfig);
   db = getDatabase(app);
-  return { app, db };
+  auth = getAuth(app);
+  return { app, db, auth };
 }
 
-const { app: firebaseApp, db: firebaseDb } = initFirebase();
-export { firebaseApp, firebaseDb };
+const { app: firebaseApp, db: firebaseDb, auth: firebaseAuth } = initFirebase();
+export { firebaseApp, firebaseDb, firebaseAuth };

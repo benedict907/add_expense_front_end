@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { DuesProvider } from "../context/DuesContext";
 import { BudgetProvider } from "../context/BudgetContext";
 import { useDues } from "../context/DuesContext";
+import { useAuth } from "../context/AuthContext";
 import ExpenseForm from "../components/ExpenseForm";
 
 const UpcomingDuesCount = () => {
@@ -18,6 +19,7 @@ import { fetchDueData } from "../store/dueSlice";
 
 const BudgetDashboard = () => {
   const dispatch = useAppDispatch();
+  const { signOut, authAvailable } = useAuth();
   const {
     items: dueItems,
     loading,
@@ -45,12 +47,22 @@ const BudgetDashboard = () => {
                   Track your expenses, manage budgets, and plan for the future
                 </p>
               </div>
-              <Link
-                to="/add"
-                className="shrink-0 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                Quick add expense
-              </Link>
+              <div className="shrink-0 flex items-center gap-2">
+                {authAvailable && (
+                  <button
+                    onClick={signOut}
+                    className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                  >
+                    Sign out
+                  </button>
+                )}
+                <Link
+                  to="/add"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Quick add expense
+                </Link>
+              </div>
             </div>
 
             {/* Main Grid Layout */}

@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { ref, onValue, push, remove, update, get } from "firebase/database";
 import { firebaseDb } from "../firebase";
+import { useAuth } from "../context/AuthContext";
 import { useDues } from "../context/DuesContext";
 
 const DUES_REF_KEY = "dues";
+
+function pathWithRoot(dataRoot, ...segments) {
+  const joined = segments.filter(Boolean).join("/");
+  return dataRoot ? `${dataRoot}/${joined}` : joined;
+}
 
 function getMonthKey(date) {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -37,6 +43,7 @@ const FILTER_PENDING = "pending";
 const FILTER_PAID = "paid";
 
 const NextMonthDues = () => {
+  const { dataRoot } = useAuth();
   const currentMonthKey = getMonthKey(new Date());
   const prevMonthKey = getPrevMonthKey(currentMonthKey);
   const { setDuesFromLocal } = useDues();
@@ -51,19 +58,23 @@ const NextMonthDues = () => {
   });
   const [duplicating, setDuplicating] = useState(false);
 
-  // Subscribe to Firebase dues for this month
+  // Subscribe to Firebase dues for this month (under user root)
   useEffect(() => {
     if (!firebaseDb) {
       const stored = localStorage.getItem(STORAGE_PREFIX + currentMonthKey);
       if (stored) setDues(JSON.parse(stored));
       return;
     }
-    const duesRef = ref(firebaseDb, `${DUES_REF_KEY}/${currentMonthKey}`);
+    if (!dataRoot) return;
+    const duesRef = ref(
+      firebaseDb,
+      pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey)
+    );
     const unsub = onValue(duesRef, (snapshot) => {
       setDues(snapshotToDues(snapshot));
     });
     return () => unsub();
-  }, [currentMonthKey]);
+  }, [currentMonthKey, dataRoot]);
 
   // Persist to localStorage and sync to DuesContext when not using Firebase
   useEffect(() => {
@@ -125,10 +136,13 @@ const NextMonthDues = () => {
       dueDate: newDue.dueDate,
       status: "pending",
     };
-    if (firebaseDb) {
-      const duesRef = ref(firebaseDb, `${DUES_REF_KEY}/${currentMonthKey}`);
+    if (firebaseDb && dataRoot) {
+      const duesRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey)
+      );
       push(duesRef, payload);
-    } else {
+    } else if (!firebaseDb) {
       setDues((prev) => [...prev, { id: Date.now().toString(), ...payload }]);
     }
     setNewDue({ name: "", amount: "", dueDate: "" });
@@ -136,25 +150,25 @@ const NextMonthDues = () => {
   };
 
   const handleDeleteDue = (id) => {
-    if (firebaseDb) {
+    if (firebaseDb && dataRoot) {
       const dueRef = ref(
         firebaseDb,
-        `${DUES_REF_KEY}/${currentMonthKey}/${id}`
+        pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey, id)
       );
       remove(dueRef);
-    } else {
+    } else if (!firebaseDb) {
       setDues((prev) => prev.filter((due) => due.id !== id));
     }
   };
 
   const handleMarkPaid = (id) => {
-    if (firebaseDb) {
+    if (firebaseDb && dataRoot) {
       const dueRef = ref(
         firebaseDb,
-        `${DUES_REF_KEY}/${currentMonthKey}/${id}`
+        pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey, id)
       );
       update(dueRef, { status: "paid" });
-    } else {
+    } else if (!firebaseDb) {
       setDues((prev) =>
         prev.map((due) => (due.id === id ? { ...due, status: "paid" } : due))
       );
@@ -194,7 +208,10 @@ const NextMonthDues = () => {
     }
     setDuplicating(true);
     try {
-      const prevRef = ref(firebaseDb, `${DUES_REF_KEY}/${prevMonthKey}`);
+      const prevRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, DUES_REF_KEY, prevMonthKey)
+      );
       const snapshot = await get(prevRef);
       const data = snapshot.val();
       if (!data || Object.keys(data).length === 0) {
@@ -202,7 +219,10 @@ const NextMonthDues = () => {
         setDuplicating(false);
         return;
       }
-      const currentRef = ref(firebaseDb, `${DUES_REF_KEY}/${currentMonthKey}`);
+      const currentRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey)
+      );
       const [y, m] = currentMonthKey.split("-").map(Number);
       let count = 0;
       for (const [, row] of Object.entries(data)) {

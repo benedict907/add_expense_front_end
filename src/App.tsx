@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ref, push, onValue } from "firebase/database";
 import { firebaseDb } from "./firebase";
+import { useAuth } from "./context/AuthContext";
 import Loader from "./Loader";
 
 type Expense = {
@@ -14,6 +15,7 @@ type Expense = {
 const EXPENSES_REF_KEY = "expenses";
 
 export default function App() {
+  const { dataRoot } = useAuth();
   const [form, setForm] = useState<Expense>({
     date: new Date().toISOString().split("T")[0],
     category: "",
@@ -48,13 +50,13 @@ export default function App() {
       alert("Please fill all fields correctly");
       return;
     }
-    if (!firebaseDb) {
-      alert("Firebase is not configured. Add your credentials to .env (see .env.example).");
+    if (!firebaseDb || !dataRoot) {
+      alert("Firebase is not configured or you are not signed in.");
       return;
     }
     setLoading(true);
     try {
-      const expensesRef = ref(firebaseDb, EXPENSES_REF_KEY);
+      const expensesRef = ref(firebaseDb, `${dataRoot}/${EXPENSES_REF_KEY}`);
       await push(expensesRef, {
         ...form,
         createdAt: Date.now(),

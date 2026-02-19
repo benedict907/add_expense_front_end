@@ -7,12 +7,14 @@ import React, {
 } from "react";
 import { ref, onValue, push, remove, set, get } from "firebase/database";
 import { firebaseDb } from "../firebase";
+import { useAuth } from "./AuthContext";
 import { useDues } from "./DuesContext";
 
 const BudgetContext = createContext();
 const EXPENSES_REF_KEY = "expenses";
 const TOTAL_INCOME_REF_KEY = "totalIncome";
 const INCOME_REF_KEY = "income";
+const BUDGETS_REF_KEY = "budgets";
 
 function getMonthKey(date) {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -43,20 +45,47 @@ function snapshotToExpenses(snapshot) {
   }));
 }
 
+function pathWithRoot(dataRoot, ...segments) {
+  const joined = segments.filter(Boolean).join("/");
+  return dataRoot ? `${dataRoot}/${joined}` : joined;
+}
+
 export const BudgetProvider = ({ children }) => {
+  const { dataRoot } = useAuth();
   const { totalDuesAmount } = useDues();
   const [expenses, setExpenses] = useState([]);
   const [budgets, setBudgets] = useState({});
   const [income, setIncome] = useState(100000); // Default ₹100,000
   const incomeLoadedRef = useRef(false);
+  const budgetsLoadedRef = useRef(false);
 
-  // Load budgets from localStorage; load income from Firebase (current month) or localStorage
+  // Load budgets and income from Firebase (current month) or localStorage
   useEffect(() => {
-    const savedBudgets = localStorage.getItem("budgetBudgets");
-    if (savedBudgets) setBudgets(JSON.parse(savedBudgets));
-    if (firebaseDb) {
-      const monthKey = getMonthKey(new Date());
-      get(ref(firebaseDb, `${INCOME_REF_KEY}/${monthKey}`)).then((snapshot) => {
+    const monthKey = getMonthKey(new Date());
+    if (firebaseDb && dataRoot) {
+      // Load budgets from Firebase (under user root)
+      get(
+        ref(firebaseDb, pathWithRoot(dataRoot, BUDGETS_REF_KEY, monthKey))
+      ).then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          if (
+            data != null &&
+            typeof data === "object" &&
+            !Array.isArray(data)
+          ) {
+            setBudgets(data);
+          }
+        } else {
+          const savedBudgets = localStorage.getItem("budgetBudgets");
+          if (savedBudgets) setBudgets(JSON.parse(savedBudgets));
+        }
+        budgetsLoadedRef.current = true;
+      });
+      // Load income from Firebase (under user root)
+      get(
+        ref(firebaseDb, pathWithRoot(dataRoot, INCOME_REF_KEY, monthKey))
+      ).then((snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
           if (data != null && typeof data.value === "number")
@@ -68,21 +97,27 @@ export const BudgetProvider = ({ children }) => {
         incomeLoadedRef.current = true;
       });
     } else {
+      const savedBudgets = localStorage.getItem("budgetBudgets");
+      if (savedBudgets) setBudgets(JSON.parse(savedBudgets));
       const savedIncome = localStorage.getItem("budgetIncome");
       if (savedIncome) setIncome(JSON.parse(savedIncome));
+      budgetsLoadedRef.current = true;
       incomeLoadedRef.current = true;
     }
-  }, []);
+  }, [dataRoot]);
 
-  // Subscribe to Firebase expenses (same path as App.tsx)
+  // Subscribe to Firebase expenses (under user root)
   useEffect(() => {
-    if (!firebaseDb) return;
-    const expensesRef = ref(firebaseDb, EXPENSES_REF_KEY);
+    if (!firebaseDb || !dataRoot) return;
+    const expensesRef = ref(
+      firebaseDb,
+      pathWithRoot(dataRoot, EXPENSES_REF_KEY)
+    );
     const unsub = onValue(expensesRef, (snapshot) => {
       setExpenses(snapshotToExpenses(snapshot));
     });
     return () => unsub();
-  }, []);
+  }, [dataRoot]);
 
   // Fallback: when Firebase is not configured, load expenses from localStorage once
   useEffect(() => {
@@ -101,21 +136,35 @@ export const BudgetProvider = ({ children }) => {
     localStorage.setItem("budgetExpenses", JSON.stringify(expenses));
   }, [expenses]);
 
+  // Persist budgets: Firebase (under user root + month key) when configured, else localStorage.
   useEffect(() => {
-    localStorage.setItem("budgetBudgets", JSON.stringify(budgets));
-  }, [budgets]);
+    if (firebaseDb && dataRoot) {
+      if (!budgetsLoadedRef.current) return;
+      const monthKey = getMonthKey(new Date());
+      const budgetsRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, BUDGETS_REF_KEY, monthKey)
+      );
+      set(budgetsRef, { ...budgets });
+    } else if (!firebaseDb) {
+      localStorage.setItem("budgetBudgets", JSON.stringify(budgets));
+    }
+  }, [budgets, dataRoot]);
 
-  // Persist income: Firebase (under month key) when configured, else localStorage. Skip Firebase write until initial load so we don't overwrite with default.
+  // Persist income: Firebase (under user root + month key) when configured, else localStorage.
   useEffect(() => {
-    if (firebaseDb) {
+    if (firebaseDb && dataRoot) {
       if (!incomeLoadedRef.current) return;
       const monthKey = getMonthKey(new Date());
-      const incomeRef = ref(firebaseDb, `${INCOME_REF_KEY}/${monthKey}`);
+      const incomeRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, INCOME_REF_KEY, monthKey)
+      );
       set(incomeRef, { value: income, updatedAt: Date.now() });
-    } else {
+    } else if (!firebaseDb) {
       localStorage.setItem("budgetIncome", JSON.stringify(income));
     }
-  }, [income]);
+  }, [income, dataRoot]);
 
   const addExpense = (expense) => {
     const payload = {
@@ -124,20 +173,26 @@ export const BudgetProvider = ({ children }) => {
       createdAt: Date.now(),
       type: expense.type ?? "expense",
     };
-    if (firebaseDb) {
-      const expensesRef = ref(firebaseDb, EXPENSES_REF_KEY);
+    if (firebaseDb && dataRoot) {
+      const expensesRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, EXPENSES_REF_KEY)
+      );
       push(expensesRef, payload);
-    } else {
+    } else if (!firebaseDb) {
       const newExpense = { id: Date.now().toString(), ...payload };
       setExpenses((prev) => [...prev, newExpense]);
     }
   };
 
   const deleteExpense = (id) => {
-    if (firebaseDb) {
-      const expenseRef = ref(firebaseDb, `${EXPENSES_REF_KEY}/${id}`);
+    if (firebaseDb && dataRoot) {
+      const expenseRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, EXPENSES_REF_KEY, id)
+      );
       remove(expenseRef);
-    } else {
+    } else if (!firebaseDb) {
       setExpenses((prev) => prev.filter((expense) => expense.id !== id));
     }
   };
@@ -165,16 +220,16 @@ export const BudgetProvider = ({ children }) => {
 
   const balance = income + totalIncome - totalSpent;
 
-  // Persist total income to Realtime DB under month key (totalIncome/YYYY-MM)
+  // Persist total income to Realtime DB under user root + month key
   useEffect(() => {
-    if (!firebaseDb) return;
+    if (!firebaseDb || !dataRoot) return;
     const monthKey = getMonthKey(new Date());
     const totalIncomeRef = ref(
       firebaseDb,
-      `${TOTAL_INCOME_REF_KEY}/${monthKey}`
+      pathWithRoot(dataRoot, TOTAL_INCOME_REF_KEY, monthKey)
     );
     set(totalIncomeRef, { value: totalIncome, updatedAt: Date.now() });
-  }, [totalIncome]);
+  }, [totalIncome, dataRoot]);
 
   // Calculate category-wise spending
   const categorySpending = expenses
