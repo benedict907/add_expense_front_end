@@ -220,17 +220,6 @@ export const BudgetProvider = ({ children }) => {
 
   const balance = income + totalIncome - totalSpent;
 
-  // Persist total income to Realtime DB under user root + month key
-  useEffect(() => {
-    if (!firebaseDb || !dataRoot) return;
-    const monthKey = getMonthKey(new Date());
-    const totalIncomeRef = ref(
-      firebaseDb,
-      pathWithRoot(dataRoot, TOTAL_INCOME_REF_KEY, monthKey)
-    );
-    set(totalIncomeRef, { value: totalIncome, updatedAt: Date.now() });
-  }, [totalIncome, dataRoot]);
-
   // Calculate category-wise spending
   const categorySpending = expenses
     .filter((expense) => expense.type === "expense")
