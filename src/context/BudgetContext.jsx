@@ -208,20 +208,26 @@ export const BudgetProvider = ({ children }) => {
     setIncome(newIncome);
   };
 
-  // Calculate totals (expenses + current month dues so total spent includes dues)
-  const expensesTotal = expenses
+  // Calculate totals for current month (expenses + current month dues so total spent includes dues)
+  const currentMonthKey = getMonthKey(new Date());
+  const currentMonthExpenses = expenses.filter((expense) => {
+    if (!expense.date) return false;
+    return getMonthKey(expense.date) === currentMonthKey;
+  });
+
+  const expensesTotal = currentMonthExpenses
     .filter((expense) => expense.type === "expense")
     .reduce((sum, expense) => sum + (expense.amount || 0), 0);
   const totalSpent = expensesTotal + (totalDuesAmount ?? 0);
 
-  const totalIncome = expenses
+  const totalIncome = currentMonthExpenses
     .filter((expense) => expense.type === "income")
     .reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
   const balance = income + totalIncome - totalSpent;
 
-  // Calculate category-wise spending
-  const categorySpending = expenses
+  // Calculate category-wise spending for current month
+  const categorySpending = currentMonthExpenses
     .filter((expense) => expense.type === "expense")
     .reduce((acc, expense) => {
       const category = expense.category || "Uncategorized";

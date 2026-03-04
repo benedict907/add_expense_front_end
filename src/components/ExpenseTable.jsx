@@ -28,8 +28,18 @@ const ExpenseTable = () => {
     }
   });
 
-  // Filter expenses
+  // Filter expenses - only show current month's data
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+
   const filteredExpenses = sortedExpenses.filter((expense) => {
+    const expenseDate = new Date(expense.date);
+    const isCurrentMonth =
+      expenseDate.getMonth() === currentMonth &&
+      expenseDate.getFullYear() === currentYear;
+
+    if (!isCurrentMonth) return false;
     if (filterType === "all") return true;
     return expense.type === filterType;
   });
@@ -94,13 +104,7 @@ const ExpenseTable = () => {
                 >
                   Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
-                <th
-                  className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort("category")}
-                >
-                  Category{" "}
-                  {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
+                <th className="text-left py-2 px-2">Note</th>
                 <th
                   className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
                   onClick={() => handleSort("amount")}
@@ -109,7 +113,14 @@ const ExpenseTable = () => {
                   {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th className="text-left py-2 px-2">Type</th>
-                <th className="text-left py-2 px-2">Note</th>
+
+                <th
+                  className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort("category")}
+                >
+                  Category{" "}
+                  {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
                 <th className="text-center py-2 px-2">Action</th>
               </tr>
             </thead>
@@ -122,25 +133,8 @@ const ExpenseTable = () => {
                   <td className="py-3 px-2 text-sm text-gray-600">
                     {formatDate(expense.date)}
                   </td>
-                  <td className="py-3 px-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        isOverBudget(expense.category)
-                          ? "text-red-600"
-                          : "text-gray-800"
-                      }`}
-                    >
-                      {expense.category}
-                      {isOverBudget(expense.category) && (
-                        <span className="ml-1 text-xs text-red-500">
-                          (Over by ₹
-                          {getOverspentAmount(
-                            expense.category
-                          ).toLocaleString()}
-                          )
-                        </span>
-                      )}
-                    </span>
+                  <td className="py-3 px-2 text-sm text-gray-600 max-w-xs truncate">
+                    {expense.note || "-"}
                   </td>
                   <td className="py-3 px-2">
                     <span
@@ -164,8 +158,26 @@ const ExpenseTable = () => {
                       {expense.type}
                     </span>
                   </td>
-                  <td className="py-3 px-2 text-sm text-gray-600 max-w-xs truncate">
-                    {expense.note || "-"}
+
+                  <td className="py-3 px-2">
+                    <span
+                      className={`text-sm font-medium ${
+                        isOverBudget(expense.category)
+                          ? "text-red-600"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      {expense.category}
+                      {isOverBudget(expense.category) && (
+                        <span className="ml-1 text-xs text-red-500">
+                          (Over by ₹
+                          {getOverspentAmount(
+                            expense.category
+                          ).toLocaleString()}
+                          )
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     <button
