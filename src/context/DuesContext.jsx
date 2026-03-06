@@ -11,7 +11,11 @@ function pathWithRoot(dataRoot, ...segments) {
   return dataRoot ? `${dataRoot}/${joined}` : joined;
 }
 
-const DuesContext = createContext({ dues: [], totalDuesAmount: 0 });
+const DuesContext = createContext({
+  dues: [],
+  totalDuesAmount: 0,
+  totalPaidDuesAmount: 0,
+});
 
 function getMonthKey(date) {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -34,7 +38,7 @@ function snapshotToDues(snapshot) {
 
 export const useDues = () => {
   const context = useContext(DuesContext);
-  return context ?? { dues: [], totalDuesAmount: 0 };
+  return context ?? { dues: [], totalDuesAmount: 0, totalPaidDuesAmount: 0 };
 };
 
 export const DuesProvider = ({ children }) => {
@@ -64,10 +68,14 @@ export const DuesProvider = ({ children }) => {
   };
 
   const totalDuesAmount = dues.reduce((sum, due) => sum + (due.amount || 0), 0);
+  const totalPaidDuesAmount = dues
+    .filter((due) => due.status === "paid")
+    .reduce((sum, due) => sum + (due.amount || 0), 0);
 
   const value = {
     dues,
     totalDuesAmount,
+    totalPaidDuesAmount,
     currentMonthKey,
     setDuesFromLocal,
   };

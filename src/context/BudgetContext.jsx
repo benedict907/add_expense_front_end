@@ -52,7 +52,7 @@ function pathWithRoot(dataRoot, ...segments) {
 
 export const BudgetProvider = ({ children }) => {
   const { dataRoot } = useAuth();
-  const { totalDuesAmount } = useDues();
+  const { totalPaidDuesAmount } = useDues();
   const [expenses, setExpenses] = useState([]);
   const [budgets, setBudgets] = useState({});
   const [income, setIncome] = useState(100000); // Default ₹100,000
@@ -218,7 +218,7 @@ export const BudgetProvider = ({ children }) => {
   const expensesTotal = currentMonthExpenses
     .filter((expense) => expense.type === "expense")
     .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-  const totalSpent = expensesTotal + (totalDuesAmount ?? 0);
+  const totalSpent = expensesTotal + (totalPaidDuesAmount ?? 0);
 
   const totalIncome = currentMonthExpenses
     .filter((expense) => expense.type === "income")

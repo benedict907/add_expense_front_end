@@ -135,7 +135,7 @@ const SummaryCard = () => {
           </p>
         </div>
         <div className="text-center p-3 bg-red-50 rounded-lg">
-          <p className="text-sm text-gray-600">Total Spent (incl. dues)</p>
+          <p className="text-sm text-gray-600">Total Spent (incl. paid dues)</p>
           <p className="text-lg font-semibold text-red-600">
             {formatAmount(totalSpent)}
           </p>
