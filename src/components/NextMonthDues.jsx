@@ -17,6 +17,7 @@ import {
   Calendar,
   Note,
   Inbox,
+  Pencil,
 } from "./Icons";
 
 const DUES_REF_KEY = "dues";
@@ -72,6 +73,8 @@ const NextMonthDues = () => {
     dueDate: "",
   });
   const [duplicating, setDuplicating] = useState(false);
+  // The due currently open in the edit sheet: { id, name, amount, dueDate }
+  const [editDue, setEditDue] = useState(null);
 
   // Subscribe to Firebase dues for this month (under user root)
   useEffect(() => {
@@ -165,6 +168,39 @@ const NextMonthDues = () => {
     }
     setNewDue({ name: "", amount: "", dueDate: "" });
     setShowAddForm(false);
+  };
+
+  // Carried-over dues usually need their amount or date corrected, so any due
+  // can be reopened and adjusted. Name is kept as-is; only money and timing move.
+  const openEditDue = (due) => {
+    setEditDue({
+      id: due.id,
+      name: due.name,
+      amount: String(due.amount ?? ""),
+      dueDate: due.dueDate ?? "",
+    });
+  };
+
+  const handleEditDue = (e) => {
+    e.preventDefault();
+    if (!editDue) return;
+    const amount = toNumber(editDue.amount);
+    if (amount <= 0 || !editDue.dueDate) return;
+
+    const patch = { amount, dueDate: editDue.dueDate };
+
+    if (firebaseDb && dataRoot) {
+      const dueRef = ref(
+        firebaseDb,
+        pathWithRoot(dataRoot, DUES_REF_KEY, currentMonthKey, editDue.id)
+      );
+      update(dueRef, patch);
+    } else if (!firebaseDb) {
+      setDues((prev) =>
+        prev.map((due) => (due.id === editDue.id ? { ...due, ...patch } : due))
+      );
+    }
+    setEditDue(null);
   };
 
   const handleDeleteDue = (id) => {
@@ -457,6 +493,61 @@ const NextMonthDues = () => {
         </form>
       </Modal>
 
+      <Modal
+        open={editDue !== null}
+        onClose={() => setEditDue(null)}
+        title="Edit due"
+        subtitle={editDue?.name}
+        icon={<Pencil className="h-4 w-4" />}
+      >
+        {editDue && (
+          <form onSubmit={handleEditDue} className="space-y-4">
+            <div>
+              <label className="eyebrow mb-2 block">Amount</label>
+              <MoneyInput
+                value={editDue.amount}
+                onValueChange={(amount) =>
+                  setEditDue((prev) => ({ ...prev, amount }))
+                }
+                quickAdjust={[500, 1000, 5000]}
+                accent="var(--color-amber)"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="eyebrow mb-2 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Due date
+              </label>
+              <input
+                type="date"
+                value={editDue.dueDate}
+                onChange={(e) =>
+                  setEditDue((prev) => ({ ...prev, dueDate: e.target.value }))
+                }
+                className="field tnum"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={toNumber(editDue.amount) <= 0 || !editDue.dueDate}
+                className="btn btn-accent flex-1 py-3"
+              >
+                Save changes
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditDue(null)}
+                className="btn btn-soft px-5 py-3"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       <div className="mt-3 max-h-[24rem] space-y-1 overflow-y-auto pr-1">
         {filteredDues.length === 0 ? (
           <div className="well flex flex-col items-center gap-2 px-4 py-10 text-center">
@@ -552,6 +643,14 @@ const NextMonthDues = () => {
                       <Check className="h-4 w-4" />
                     </button>
                   )}
+                  <button
+                    onClick={() => openEditDue(due)}
+                    className="btn-icon h-8 w-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:!text-amber max-sm:opacity-100"
+                    title="Edit amount or date"
+                    aria-label={`Edit ${due.name}`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => handleDeleteDue(due.id)}
                     className="btn-icon h-8 w-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:!text-coral max-sm:opacity-100"

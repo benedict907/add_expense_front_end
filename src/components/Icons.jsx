@@ -157,6 +157,13 @@ export const Logout = (p) => (
   </Svg>
 );
 
+export const Pencil = (p) => (
+  <Svg {...p}>
+    <path d="M4 20.5h4L19.3 9.2a2.1 2.1 0 0 0 0-3l-1.5-1.5a2.1 2.1 0 0 0-3 0L3.5 16v4.5Z" />
+    <path d="m13.5 6.5 4 4" />
+  </Svg>
+);
+
 export const Sparkle = (p) => (
   <Svg {...p}>
     <path d="M12 3.5 13.7 9l5.5 1.7-5.5 1.7L12 18l-1.7-5.6L4.8 10.7 10.3 9z" />

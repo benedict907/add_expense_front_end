@@ -22,6 +22,7 @@ export const Basket: Icon;
 export const Layers: Icon;
 export const Bell: Icon;
 export const Copy: Icon;
+export const Pencil: Icon;
 export const Logout: Icon;
 export const Sparkle: Icon;
 export const Phone: Icon;
