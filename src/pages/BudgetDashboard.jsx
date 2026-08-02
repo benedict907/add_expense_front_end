@@ -244,6 +244,10 @@ const BudgetDashboard = () => {
                 <Reveal>
                   <SummaryCard />
                 </Reveal>
+
+                     <Reveal delay={80}>
+                  <ExpenseForm />
+                </Reveal>
                 <Reveal delay={60}>
                   <ExpenseTable />
                 </Reveal>
@@ -253,9 +257,7 @@ const BudgetDashboard = () => {
                 <Reveal delay={40}>
                   <FlowCard />
                 </Reveal>
-                <Reveal delay={80}>
-                  <ExpenseForm />
-                </Reveal>
+           
                 <Reveal delay={120}>
                   <NextMonthDues />
                 </Reveal>
@@ -267,14 +269,7 @@ const BudgetDashboard = () => {
             </footer>
           </div>
 
-          {/* ---------- mobile thumb-zone FAB ---------- */}
-          <Link
-            to="/add"
-            aria-label="Quick add expense"
-            className="btn btn-accent fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-40 h-14 w-14 rounded-full shadow-lg lg:hidden"
-          >
-            <Plus className="h-6 w-6" />
-          </Link>
+
         </div>
       </BudgetProvider>
     </DuesProvider>
