@@ -3,6 +3,21 @@ import { ref, onValue, push, remove, update, get } from "firebase/database";
 import { firebaseDb } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useDues } from "../context/DuesContext";
+import MoneyInput, { toNumber } from "./MoneyInput";
+import Modal from "./Modal";
+import Segmented from "./Segmented";
+import AnimatedNumber from "./AnimatedNumber";
+import {
+  Bell,
+  Plus,
+  Copy,
+  Check,
+  Trash,
+  Clock,
+  Calendar,
+  Note,
+  Inbox,
+} from "./Icons";
 
 const DUES_REF_KEY = "dues";
 
@@ -91,9 +106,16 @@ const NextMonthDues = () => {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
+
+  const formatAmount0 = (amount) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amount);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-IN", {
@@ -111,28 +133,24 @@ const NextMonthDues = () => {
     return diffDays;
   };
 
-  const getStatusColor = (dueDate) => {
+  // Urgency drives colour: overdue coral, imminent amber, soon iris, calm mint.
+  const getUrgency = (dueDate) => {
     const days = getDaysUntilDue(dueDate);
-    if (days < 0) return "text-red-600 bg-red-100";
-    if (days <= 3) return "text-orange-600 bg-orange-100";
-    if (days <= 7) return "text-yellow-600 bg-yellow-100";
-    return "text-green-600 bg-green-100";
-  };
-
-  const getStatusText = (dueDate) => {
-    const days = getDaysUntilDue(dueDate);
-    if (days < 0) return "Overdue";
-    if (days === 0) return "Due Today";
-    if (days === 1) return "Due Tomorrow";
-    return `${days} days left`;
+    if (days < 0) return { hue: "var(--color-coral)", label: "Overdue" };
+    if (days === 0) return { hue: "var(--color-coral)", label: "Due today" };
+    if (days === 1) return { hue: "var(--color-amber)", label: "Due tomorrow" };
+    if (days <= 3) return { hue: "var(--color-amber)", label: `${days} days left` };
+    if (days <= 7) return { hue: "var(--color-iris)", label: `${days} days left` };
+    return { hue: "var(--color-mint)", label: `${days} days left` };
   };
 
   const handleAddDue = (e) => {
     e.preventDefault();
-    if (!newDue.name || !newDue.amount || !newDue.dueDate) return;
+    const amount = toNumber(newDue.amount);
+    if (!newDue.name || amount <= 0 || !newDue.dueDate) return;
     const payload = {
       name: newDue.name.trim(),
-      amount: parseFloat(newDue.amount),
+      amount,
       dueDate: newDue.dueDate,
       status: "pending",
     };
@@ -278,215 +296,269 @@ const NextMonthDues = () => {
     { month: "long", year: "numeric" }
   );
 
+  const dueSoon = pendingDues.filter(
+    (due) => getDaysUntilDue(due.dueDate) <= 7
+  ).length;
+
+  // Share of the month's dues already cleared.
+  const clearedPct = totalAll > 0 ? (totalPaid / totalAll) * 100 : 0;
+
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Dues — {monthLabel}
-        </h2>
+    <section className="card card-hover p-5 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
+          <span className="tile h-8 w-8 rounded-[11px] text-amber">
+            <Bell className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-hi">Dues</p>
+            <p className="text-[11px] text-low">{monthLabel}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           <button
             onClick={handleDuplicateFromLastMonth}
             disabled={duplicating}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="chip disabled:opacity-50"
+            title={`Carry over dues from ${prevMonthKey}`}
           >
-            {duplicating ? "Duplicating…" : `Duplicate from ${prevMonthKey}`}
+            <Copy className="h-3.5 w-3.5" />
+            {duplicating ? "Copying…" : "Carry over"}
           </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            + Add Due
+          <button onClick={() => setShowAddForm(true)} className="chip">
+            <Plus className="h-3.5 w-3.5" />
+            Add
           </button>
         </div>
       </div>
 
-      {/* Totals: Pending, Paid, All */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-          <p className="text-xs text-gray-600">Pending</p>
-          <p className="text-lg font-bold text-amber-700">
-            {formatAmount(totalPending)}
-          </p>
-          <p className="text-xs text-gray-500">{pendingDues.length} items</p>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <p className="text-xs text-gray-600">Paid</p>
-          <p className="text-lg font-bold text-green-700">
-            {formatAmount(totalPaid)}
-          </p>
-          <p className="text-xs text-gray-500">{paidDues.length} items</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs text-gray-600">Total (all dues)</p>
-          <p className="text-lg font-bold text-blue-600">
-            {formatAmount(totalAll)}
-          </p>
-        </div>
-      </div>
-
-      {/* Filter: All | Pending | Paid */}
-      <div className="flex gap-2 mb-3">
-        {[
-          [FILTER_ALL, "All"],
-          [FILTER_PENDING, "Pending"],
-          [FILTER_PAID, "Paid"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setFilter(value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-              filter === value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Add Due Form Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">
-              Add due for {monthLabel}
-            </h3>
-            <form onSubmit={handleAddDue} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Name
-                </label>
-                <input
-                  type="text"
-                  value={newDue.name}
-                  onChange={(e) =>
-                    setNewDue((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Credit Card Payment"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  value={newDue.amount}
-                  onChange={(e) =>
-                    setNewDue((prev) => ({ ...prev, amount: e.target.value }))
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={newDue.dueDate}
-                  onChange={(e) =>
-                    setNewDue((prev) => ({ ...prev, dueDate: e.target.value }))
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-                >
-                  Add Due
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+      {/* Progress toward clearing the month */}
+      <div className="well p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="eyebrow text-amber/80">Still to pay</p>
+            <p className="tnum mt-1 text-3xl font-medium text-hi">
+              <AnimatedNumber value={totalPending} format={formatAmount0} />
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="tnum text-sm text-mint">
+              {formatAmount0(totalPaid)} cleared
+            </p>
+            <p className="mt-0.5 text-[11px] text-low">
+              {paidDues.length} of {dues.length} paid
+            </p>
           </div>
         </div>
-      )}
 
-      {/* Dues List (all, pending, or paid by filter) */}
-      <div className="space-y-3 max-h-80 overflow-y-auto">
+        <div className="meter mt-3">
+          <div
+            className="meter-fill"
+            style={{
+              width: `${clearedPct}%`,
+              background: "linear-gradient(90deg,#7cecd3,var(--color-mint))",
+            }}
+          />
+        </div>
+
+        <div className="mt-3 flex items-center justify-between text-[11px]">
+          <span className="flex items-center gap-1.5 text-low">
+            <Clock className="h-3.5 w-3.5" />
+            {dueSoon} due within 7 days
+          </span>
+          <span className="tnum text-low">{formatAmount0(totalAll)} total</span>
+        </div>
+      </div>
+
+      <Segmented
+        className="mt-4"
+        size="sm"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: FILTER_ALL, label: "All" },
+          {
+            value: FILTER_PENDING,
+            label: `Pending ${pendingDues.length}`,
+            fill: "rgba(255,176,58,0.2)",
+            text: "var(--color-amber)",
+          },
+          {
+            value: FILTER_PAID,
+            label: `Paid ${paidDues.length}`,
+            fill: "rgba(69,224,189,0.2)",
+            text: "var(--color-mint)",
+          },
+        ]}
+      />
+
+      <Modal
+        open={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        title="Add a due"
+        subtitle={monthLabel}
+        icon={<Bell className="h-4 w-4" />}
+      >
+        <form onSubmit={handleAddDue} className="space-y-4">
+          <div>
+            <label className="eyebrow mb-2 flex items-center gap-1.5">
+              <Note className="h-3.5 w-3.5" />
+              Payment name
+            </label>
+            <input
+              type="text"
+              value={newDue.name}
+              onChange={(e) =>
+                setNewDue((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="field"
+              placeholder="e.g. Credit card payment"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="eyebrow mb-2 block">Amount</label>
+            <MoneyInput
+              value={newDue.amount}
+              onValueChange={(amount) =>
+                setNewDue((prev) => ({ ...prev, amount }))
+              }
+              quickAdjust={[500, 1000, 5000]}
+              accent="var(--color-amber)"
+            />
+          </div>
+          <div>
+            <label className="eyebrow mb-2 flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              Due date
+            </label>
+            <input
+              type="date"
+              value={newDue.dueDate}
+              onChange={(e) =>
+                setNewDue((prev) => ({ ...prev, dueDate: e.target.value }))
+              }
+              className="field tnum"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="submit" className="btn btn-accent flex-1 py-3">
+              Add due
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="btn btn-soft px-5 py-3"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <div className="mt-3 max-h-[24rem] space-y-1 overflow-y-auto pr-1">
         {filteredDues.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            {filter === FILTER_ALL
-              ? "No dues for this month. Add one or duplicate from last month."
-              : filter === FILTER_PENDING
-              ? "No pending dues."
-              : "No paid dues."}
+          <div className="well flex flex-col items-center gap-2 px-4 py-10 text-center">
+            <span className="tile h-10 w-10 text-low">
+              <Inbox className="h-5 w-5" />
+            </span>
+            <p className="text-sm text-mid">
+              {filter === FILTER_ALL
+                ? "No dues yet"
+                : filter === FILTER_PENDING
+                ? "Nothing pending"
+                : "Nothing paid yet"}
+            </p>
+            {filter === FILTER_ALL && (
+              <p className="max-w-[16rem] text-xs text-low">
+                Add one, or carry last month's list over in a tap.
+              </p>
+            )}
           </div>
         ) : (
-          filteredDues.map((due) => {
+          filteredDues.map((due, i) => {
             const isPaid = due.status === "paid";
+            const urgency = getUrgency(due.dueDate);
+            const hue = isPaid ? "var(--color-mint)" : urgency.hue;
+
             return (
               <div
                 key={due.id}
-                className={`border rounded-lg p-4 hover:bg-gray-50 ${
-                  isPaid ? "border-green-200 bg-green-50/50" : "border-gray-200"
+                className={`group flex items-center gap-3 rounded-2xl border border-transparent px-2.5 py-2.5 transition-colors duration-200 hover:border-white/[0.07] hover:bg-white/[0.035] ${
+                  isPaid ? "opacity-55" : ""
                 }`}
+                style={{
+                  animation: `vault-pop .38s var(--ease) ${Math.min(i, 12) * 32}ms both`,
+                }}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3
-                      className={`font-medium ${
-                        isPaid ? "text-gray-600 line-through" : "text-gray-800"
-                      }`}
-                    >
-                      {due.name}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Due: {formatDate(due.dueDate)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`text-lg font-semibold ${
-                        isPaid ? "text-gray-500" : "text-gray-800"
-                      }`}
-                    >
-                      {formatAmount(due.amount)}
-                    </p>
+                <span
+                  className="tile h-10 w-10"
+                  style={{
+                    background: `color-mix(in srgb, ${hue} 13%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${hue} 22%, transparent)`,
+                    color: hue,
+                  }}
+                >
+                  {isPaid ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Clock className="h-4 w-4" />
+                  )}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`truncate text-[14px] font-medium ${
+                      isPaid ? "text-mid line-through" : "text-hi"
+                    }`}
+                  >
+                    {due.name}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-low">
+                    <span className="tnum">{formatDate(due.dueDate)}</span>
                     {isPaid ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Paid
-                      </span>
+                      <span className="badge bg-mint/12 text-mint">Paid</span>
                     ) : (
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                          due.dueDate
-                        )}`}
+                        className="badge"
+                        style={{
+                          background: `color-mix(in srgb, ${hue} 14%, transparent)`,
+                          color: hue,
+                        }}
                       >
-                        {getStatusText(due.dueDate)}
+                        {urgency.label}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-3">
-                  {isPaid ? null : (
+                <p
+                  className={`tnum shrink-0 text-[15px] font-medium ${
+                    isPaid ? "text-mid" : "text-hi"
+                  }`}
+                >
+                  {formatAmount(due.amount)}
+                </p>
+
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {!isPaid && (
                     <button
                       onClick={() => handleMarkPaid(due.id)}
-                      className="flex-1 bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700 transition-colors"
+                      className="btn-icon h-8 w-8 text-mint hover:!bg-mint/15"
+                      title="Mark as paid"
+                      aria-label={`Mark ${due.name} as paid`}
                     >
-                      Mark as Paid
+                      <Check className="h-4 w-4" />
                     </button>
                   )}
                   <button
                     onClick={() => handleDeleteDue(due.id)}
-                    className="bg-red-100 text-red-600 py-1 px-3 rounded text-sm hover:bg-red-200 transition-colors"
+                    className="btn-icon h-8 w-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:!text-coral max-sm:opacity-100"
+                    title="Delete"
+                    aria-label={`Delete ${due.name}`}
                   >
-                    Delete
+                    <Trash className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -494,26 +566,7 @@ const NextMonthDues = () => {
           })
         )}
       </div>
-
-      {/* Quick Stats */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div>
-            <p className="text-sm text-gray-600">Total Dues</p>
-            <p className="text-lg font-semibold text-gray-800">{dues.length}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Due This Week</p>
-            <p className="text-lg font-semibold text-orange-600">
-              {
-                pendingDues.filter((due) => getDaysUntilDue(due.dueDate) <= 7)
-                  .length
-              }
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 };
 

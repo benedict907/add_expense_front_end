@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./Login";
 import BudgetDashboard from "../pages/BudgetDashboard";
 import App from "../App";
+import Loader from "../Loader";
 import { useAuth } from "../context/AuthContext";
 
 /**
@@ -13,11 +14,7 @@ const ProtectedApp = () => {
   const { user, loading, authAvailable } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-600">Loading…</p>
-      </div>
-    );
+    return <Loader label="Opening your vault" />;
   }
 
   // If Firebase Auth is configured but user not logged in, show login

@@ -1,5 +1,13 @@
 import React, { useState } from "react";
 import { useBudget } from "../context/BudgetContext";
+import Segmented from "./Segmented";
+import { categoryVisual, Trash, Inbox, Receipt, TrendUp } from "./Icons";
+
+const SORTS = [
+  { field: "date", label: "Date" },
+  { field: "amount", label: "Amount" },
+  { field: "category", label: "Category" },
+];
 
 const ExpenseTable = () => {
   const { expenses, deleteExpense, isOverBudget, getOverspentAmount } =
@@ -53,160 +61,196 @@ const ExpenseTable = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-IN", {
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString("en-IN", {
       day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+      month: "short",
     });
-  };
 
-  const formatAmount = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
+  const formatAmount = (amount) =>
+    new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(amount);
-  };
+
+  const net = filteredExpenses.reduce(
+    (sum, e) => sum + (e.type === "income" ? 1 : -1) * (Number(e.amount) || 0),
+    0
+  );
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Expenses & Income
-        </h2>
-        <div className="flex gap-2">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="expense">Expenses</option>
-            <option value="income">Income</option>
-          </select>
+    <section className="card card-hover p-5 sm:p-6">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="tile h-8 w-8 rounded-[11px] text-violet">
+            <Receipt className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-hi">Transactions</p>
+            <p className="text-[11px] text-low">
+              {filteredExpenses.length} this month
+              {filteredExpenses.length > 0 && (
+                <>
+                  {" · net "}
+                  <span
+                    className={`tnum ${net >= 0 ? "text-mint" : "text-coral"}`}
+                  >
+                    {net >= 0 ? "+" : "−"}
+                    {formatAmount(Math.abs(net))}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
+
+        <Segmented
+          className="w-[11.5rem] shrink-0"
+          size="sm"
+          value={filterType}
+          onChange={setFilterType}
+          options={[
+            { value: "all", label: "All" },
+            {
+              value: "expense",
+              label: "Out",
+              fill: "rgba(255,111,94,0.22)",
+              text: "var(--color-coral)",
+            },
+            {
+              value: "income",
+              label: "In",
+              fill: "rgba(69,224,189,0.2)",
+              text: "var(--color-mint)",
+            },
+          ]}
+        />
+      </div>
+
+      {/* Sort chips replace the old clickable table headers */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-[11px] text-low">Sort</span>
+        {SORTS.map(({ field, label }) => {
+          const on = sortBy === field;
+          return (
+            <button
+              key={field}
+              onClick={() => handleSort(field)}
+              data-active={on}
+              className="chip"
+              aria-label={`Sort by ${label}, ${
+                on ? (sortOrder === "asc" ? "ascending" : "descending") : ""
+              }`}
+            >
+              {label}
+              {on && (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3 w-3 transition-transform duration-300"
+                  style={{
+                    transform: sortOrder === "asc" ? "rotate(180deg)" : "none",
+                  }}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 5v14M6 13l6 6 6-6" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {filteredExpenses.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No {filterType === "all" ? "transactions" : filterType + "s"} found
+        <div className="well flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <span className="tile h-10 w-10 text-low">
+            <Inbox className="h-5 w-5" />
+          </span>
+          <p className="text-sm text-mid">
+            No {filterType === "all" ? "entries" : filterType + "s"} yet
+          </p>
+          <p className="max-w-[16rem] text-xs text-low">
+            Anything you record this month lands here instantly.
+          </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th
-                  className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort("date")}
-                >
-                  Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="text-left py-2 px-2">Note</th>
-                <th
-                  className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort("amount")}
-                >
-                  Amount{" "}
-                  {sortBy === "amount" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="text-left py-2 px-2">Type</th>
+        <ul className="-mx-1.5 max-h-[26rem] space-y-1 overflow-y-auto px-1.5">
+          {filteredExpenses.map((expense, i) => {
+            const income = expense.type === "income";
+            const over = isOverBudget(expense.category);
+            const overBy = over ? getOverspentAmount(expense.category) : 0;
+            const { Icon, hue } = categoryVisual(expense.category);
+            const tone = income ? "var(--color-mint)" : hue;
 
-                <th
-                  className="text-left py-2 px-2 cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort("category")}
+            return (
+              <li
+                key={expense.id}
+                className="group flex items-center gap-3 rounded-2xl border border-transparent px-2.5 py-2.5 transition-colors duration-200 hover:border-white/[0.07] hover:bg-white/[0.035]"
+                style={{
+                  animation: `vault-pop .38s var(--ease) ${Math.min(i, 12) * 32}ms both`,
+                }}
+              >
+                <span
+                  className="tile h-10 w-10"
+                  style={{
+                    background: `color-mix(in srgb, ${tone} 13%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${tone} 22%, transparent)`,
+                    color: tone,
+                  }}
                 >
-                  Category{" "}
-                  {sortBy === "category" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="text-center py-2 px-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredExpenses.map((expense) => (
-                <tr
-                  key={expense.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
-                >
-                  <td className="py-3 px-2 text-sm text-gray-600">
-                    {formatDate(expense.date)}
-                  </td>
-                  <td className="py-3 px-2 text-sm text-gray-600 max-w-xs truncate">
-                    {expense.note || "-"}
-                  </td>
-                  <td className="py-3 px-2">
-                    <span
-                      className={`font-medium ${
-                        expense.type === "income"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {formatAmount(expense.amount)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        expense.type === "income"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {expense.type}
-                    </span>
-                  </td>
+                  {income ? (
+                    <TrendUp className="h-4 w-4" />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
+                </span>
 
-                  <td className="py-3 px-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        isOverBudget(expense.category)
-                          ? "text-red-600"
-                          : "text-gray-800"
-                      }`}
-                    >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium text-hi">
+                    {expense.note || expense.category || "Untitled"}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-low">
+                    <span className="tnum">{formatDate(expense.date)}</span>
+                    <span aria-hidden>·</span>
+                    <span className={over ? "text-coral" : ""}>
                       {expense.category}
-                      {isOverBudget(expense.category) && (
-                        <span className="ml-1 text-xs text-red-500">
-                          (Over by ₹
-                          {getOverspentAmount(
-                            expense.category
-                          ).toLocaleString()}
-                          )
-                        </span>
-                      )}
                     </span>
-                  </td>
-                  <td className="py-3 px-2 text-center">
-                    <button
-                      onClick={() => deleteExpense(expense.id)}
-                      className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-                      title="Delete"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    {over && (
+                      <span className="badge bg-coral/12 text-coral">
+                        over by {formatAmount(overBy)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p
+                  className={`tnum shrink-0 text-[15px] font-medium ${
+                    income ? "text-mint" : "text-hi"
+                  }`}
+                >
+                  {income ? "+" : "−"}
+                  {formatAmount(expense.amount)}
+                </p>
+
+                <button
+                  onClick={() => deleteExpense(expense.id)}
+                  className="btn-icon h-8 w-8 shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:!text-coral max-sm:opacity-100"
+                  title="Delete"
+                  aria-label={`Delete ${expense.note || expense.category}`}
+                >
+                  <Trash className="h-4 w-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 };
 

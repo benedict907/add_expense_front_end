@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { RecaptchaVerifier } from "firebase/auth";
 import { firebaseAuth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { Phone, Shield, Alert, ArrowUpRight, Sparkle } from "./Icons";
 
 const Login = () => {
   const { signInWithPhone } = useAuth();
@@ -117,91 +118,166 @@ const Login = () => {
 
   if (!firebaseAuth) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <p className="text-gray-600">
-          Firebase is not configured. Add credentials to .env to use login.
-        </p>
+      <div className="flex min-h-dvh items-center justify-center p-6">
+        <div className="card max-w-sm p-6 text-center">
+          <span className="tile mx-auto h-11 w-11 text-amber">
+            <Alert className="h-5 w-5" />
+          </span>
+          <p className="mt-3 text-sm font-semibold text-hi">
+            Firebase isn't configured
+          </p>
+          <p className="mt-1.5 text-[13px] text-mid">
+            Add your credentials to <code className="tnum text-lime">.env</code>{" "}
+            to enable sign-in.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-          💰 Expense Tracker
-        </h1>
-        <p className="text-sm text-gray-600 mb-6 text-center">
-          Sign in with your phone number
-        </p>
-        {step === "phone" ? (
-          <form onSubmit={handleSendCode} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone number
-              </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-700 text-sm">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="9876543210"
-                  className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
-              id="send-code-button"
-              type="submit"
-              disabled={sending}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+    <div className="flex min-h-dvh items-center justify-center p-4 sm:p-6">
+      <div className="anim-pop w-full max-w-sm">
+        {/* Brand mark */}
+        <div className="mb-7 text-center">
+          <span
+            className="mx-auto grid h-14 w-14 place-items-center rounded-[20px]"
+            style={{
+              background:
+                "linear-gradient(140deg,#e2ff8a,var(--color-lime) 55%,#9ad70c)",
+              boxShadow: "0 16px 40px -14px rgba(204,251,79,0.6)",
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-7 w-7"
+              fill="none"
+              stroke="#0b1000"
+              strokeWidth={2.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              {sending ? "Sending…" : "Send verification code"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyCode} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Verification code
-              </label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) =>
-                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                placeholder="123456"
-                maxLength={6}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg tracking-widest"
-              />
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={verifying || code.length < 6}
-                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
-              >
-                {verifying ? "Verifying…" : "Verify"}
-              </button>
-            </div>
-          </form>
-        )}
-        <p className="mt-6 text-xs text-gray-500 text-center">
-          By signing in, you may receive an SMS for verification. Standard rates
-          apply.
+              <path d="m4 16 5-6 3 3 8-9" />
+            </svg>
+          </span>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-hi">
+            Vault
+          </h1>
+          <p className="mt-1.5 text-[13px] text-mid">
+            {step === "phone"
+              ? "Sign in with your phone number"
+              : `Code sent to ${phone}`}
+          </p>
+        </div>
+
+        <div className="card overflow-hidden p-6">
+          <div
+            className="pointer-events-none absolute -left-16 -top-20 h-52 w-52 rounded-full blur-3xl"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(204,251,79,0.16), transparent 68%)",
+            }}
+          />
+
+          <div className="relative">
+            {step === "phone" ? (
+              <form onSubmit={handleSendCode} className="space-y-4">
+                <div>
+                  <label className="eyebrow mb-2 flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" />
+                    Phone number
+                  </label>
+                  <div className="flex gap-2">
+                    <span className="tnum grid shrink-0 place-items-center rounded-[14px] border border-white/[0.07] bg-black/30 px-3.5 text-[15px] text-mid">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="9876543210"
+                      className="field tnum py-3.5 text-[15px]"
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <p className="anim-fade flex items-start gap-2 rounded-xl border border-coral/25 bg-coral/10 px-3 py-2 text-[13px] text-coral">
+                    <Alert className="mt-0.5 h-4 w-4 shrink-0" />
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  id="send-code-button"
+                  type="submit"
+                  disabled={sending}
+                  className="btn btn-accent w-full py-3.5 text-[15px]"
+                >
+                  {sending ? (
+                    "Sending…"
+                  ) : (
+                    <>
+                      Send verification code
+                      <ArrowUpRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div>
+                  <label className="eyebrow mb-2 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" />
+                    Verification code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(e) =>
+                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    placeholder="------"
+                    maxLength={6}
+                    autoFocus
+                    className="field tnum py-4 text-center text-2xl font-medium tracking-[0.4em]"
+                  />
+                </div>
+
+                {error && (
+                  <p className="anim-fade flex items-start gap-2 rounded-xl border border-coral/25 bg-coral/10 px-3 py-2 text-[13px] text-coral">
+                    <Alert className="mt-0.5 h-4 w-4 shrink-0" />
+                    {error}
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="btn btn-soft px-5 py-3.5"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={verifying || code.length < 6}
+                    className="btn btn-accent flex-1 py-3.5 text-[15px]"
+                  >
+                    {verifying ? "Verifying…" : "Verify & continue"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11px] text-low">
+          <Sparkle className="h-3.5 w-3.5" />
+          You may receive an SMS. Standard rates apply.
         </p>
       </div>
     </div>
