@@ -144,8 +144,12 @@ const TransactionList = ({ ownerFilter, onOwnerFilterChange, cardFilter, showCar
 
   return (
     <section className="card card-hover overflow-hidden">
-      {/* ---------- filter bar (sticky on mobile so it stays reachable) ---------- */}
-      <div className="glass sticky top-[57px] z-20 border-x-0 border-t-0 px-4 py-3 sm:static sm:bg-transparent sm:backdrop-blur-none sm:px-6 sm:pt-5">
+      {/* ---------- filter bar ----------
+          Not sticky. On a phone it stacks to ~158px — nearly a third of the
+          screen — and a pinned element paints over the list beneath it, so the
+          top transactions were permanently hidden. It sits at the head of the
+          list instead, where it can't cover anything. */}
+      <div className="px-4 py-3 sm:px-6 sm:pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="eyebrow">Transactions</p>
@@ -181,19 +185,22 @@ const TransactionList = ({ ownerFilter, onOwnerFilterChange, cardFilter, showCar
           </div>
         </div>
 
-        <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
+        {/* Wraps onto as many rows as it needs. The previous horizontal
+            scroller squeezed the search box and hid the type filter off-screen
+            on a phone. */}
+        <div className="mt-2.5 flex flex-wrap gap-2">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search merchant"
-            className="field h-9 min-w-[9rem] flex-1 py-0 text-[13px]"
+            className="field h-10 w-full py-0 text-[13px] sm:h-9 sm:w-auto sm:min-w-[9rem] sm:flex-1"
           />
 
           {!cardFilter && cards.length > 1 && (
             <select
               value={localCard}
               onChange={(e) => setLocalCard(e.target.value)}
-              className="field h-9 w-auto shrink-0 py-0 text-[13px]"
+              className="field h-10 min-w-0 flex-1 py-0 text-[13px] sm:h-9 sm:w-auto sm:flex-none sm:shrink-0"
               aria-label="Filter by card"
             >
               <option value="ALL">All cards</option>
@@ -210,7 +217,7 @@ const TransactionList = ({ ownerFilter, onOwnerFilterChange, cardFilter, showCar
             onChange={(e) =>
               onOwnerFilterChange(e.target.value === "ALL" ? null : e.target.value)
             }
-            className="field h-9 w-auto shrink-0 py-0 text-[13px]"
+            className="field h-10 min-w-0 flex-1 py-0 text-[13px] sm:h-9 sm:w-auto sm:flex-none sm:shrink-0"
             aria-label="Filter by person"
           >
             <option value="ALL">Everyone</option>
@@ -225,7 +232,7 @@ const TransactionList = ({ ownerFilter, onOwnerFilterChange, cardFilter, showCar
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="field h-9 w-auto shrink-0 py-0 text-[13px]"
+            className="field h-10 min-w-0 flex-1 py-0 text-[13px] sm:h-9 sm:w-auto sm:flex-none sm:shrink-0"
             aria-label="Filter by type"
           >
             <option value="ALL">All types</option>
@@ -240,7 +247,7 @@ const TransactionList = ({ ownerFilter, onOwnerFilterChange, cardFilter, showCar
             type="button"
             onClick={() => setEmiOnly((v) => !v)}
             data-active={emiOnly}
-            className="chip shrink-0"
+            className="chip h-10 shrink-0 px-3.5 sm:h-auto sm:px-2.5"
           >
             <Layers className="h-3.5 w-3.5" />
             EMI only

@@ -613,6 +613,17 @@
     animation-delay: var(--reveal-delay, 0ms);
   }
 
+  /* Once revealed, shed the transform and will-change. A transformed ancestor
+     becomes the containing block for `position: sticky`/`fixed` descendants,
+     which silently breaks sticky filter bars and modals inside a revealed
+     card. */
+  .reveal.is-done {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+
   .anim-pop {
     animation: vault-pop 0.34s var(--ease-spring) both;
   }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useCreditCards,
@@ -205,9 +205,30 @@ const DashboardBody = () => {
 export const CreditCardHeader = () => {
   const { signOut, authAvailable } = useAuth();
   const today = new Date();
+  const ref = useRef(null);
+
+  // The filter bar sticks directly beneath this header, so its height has to be
+  // a measured value rather than a guess — it changes with font size, zoom and
+  // viewport. Published as a CSS variable for anything that needs to sit below.
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    const publish = () =>
+      document.documentElement.style.setProperty(
+        "--cc-header-h",
+        `${Math.round(node.getBoundingClientRect().height)}px`
+      );
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <header className="glass sticky top-0 z-40 border-x-0 border-t-0 px-4 py-3 sm:px-6">
+    <header
+      ref={ref}
+      className="glass sticky top-0 z-40 border-x-0 border-t-0 px-4 py-3 sm:px-6"
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
