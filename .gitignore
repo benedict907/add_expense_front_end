@@ -138,3 +138,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 package-lock.json
+graphify-out/
+.DS_Store
+yarn.lock
+test.json

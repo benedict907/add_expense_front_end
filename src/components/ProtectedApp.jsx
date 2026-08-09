@@ -2,6 +2,9 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Login from "./Login";
 import BudgetDashboard from "../pages/BudgetDashboard";
+import CreditCardDashboard from "../pages/CreditCardDashboard";
+import CardStatement from "../pages/CardStatement";
+import CreditCardLayout from "../pages/CreditCardLayout";
 import App from "../App";
 import Loader from "../Loader";
 import { useAuth } from "../context/AuthContext";
@@ -27,6 +30,12 @@ const ProtectedApp = () => {
     <Routes>
       <Route path="/" element={<BudgetDashboard />} />
       <Route path="/add" element={<App />} />
+      {/* Credit-card module — separate data, separate pages, one shared
+          provider so the selected month survives navigation between them. */}
+      <Route element={<CreditCardLayout />}>
+        <Route path="/credit-cards" element={<CreditCardDashboard />} />
+        <Route path="/credit-cards/:cardId" element={<CardStatement />} />
+      </Route>
     </Routes>
   );
 };

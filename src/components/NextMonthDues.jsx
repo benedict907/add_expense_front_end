@@ -280,6 +280,10 @@ const NextMonthDues = () => {
       const [y, m] = currentMonthKey.split("-").map(Number);
       let count = 0;
       for (const [, row] of Object.entries(data)) {
+        // Card dues are generated from statements each month and keep their own
+        // stable keys. Copying them forward would create hand-made duplicates
+        // the generator can no longer keep in step.
+        if (row.source === "creditCard") continue;
         const dueDate = row.dueDate
           ? (() => {
               const d = new Date(row.dueDate);

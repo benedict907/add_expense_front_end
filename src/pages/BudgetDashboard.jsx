@@ -22,6 +22,7 @@ import {
   Chart,
   TrendDown,
   Alert,
+  Card as CardIcon,
 } from "../components/Icons";
 
 const currency0 = (n) =>
@@ -193,6 +194,15 @@ const BudgetDashboard = () => {
                   <Bell className="h-3.5 w-3.5" />
                   <UpcomingDuesCount /> due
                 </span>
+                {/* Entry point to the credit-card module. */}
+                <Link
+                  to="/credit-cards"
+                  className="btn btn-soft px-3.5 py-2 text-[13px]"
+                  title="Credit cards"
+                >
+                  <CardIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Cards</span>
+                </Link>
                 <Link to="/add" className="btn btn-accent px-3.5 py-2 text-[13px]">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Quick add</span>

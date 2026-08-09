@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Close } from "./Icons";
 
 /**
@@ -26,7 +27,12 @@ const Modal = ({ open, onClose, title, subtitle, icon, children }) => {
 
   if (!open) return null;
 
-  return (
+  // Rendered into <body> rather than in place. `.reveal` sets
+  // `will-change: transform`, which makes any ancestor using it a containing
+  // block for `position: fixed` — so a modal opened from inside a revealed
+  // card would be positioned against that card and clipped by its
+  // `overflow-hidden` instead of covering the viewport.
+  return createPortal(
     <div
       onClick={onClose}
       role="dialog"
@@ -66,7 +72,8 @@ const Modal = ({ open, onClose, title, subtitle, icon, children }) => {
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
