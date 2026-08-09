@@ -118,11 +118,49 @@ const PulseStrip = () => {
   );
 };
 
+const isSameDay = (value, day) => {
+  if (!value) return false;
+  const d = new Date(value);
+  return (
+    d.getDate() === day.getDate() &&
+    d.getMonth() === day.getMonth() &&
+    d.getFullYear() === day.getFullYear()
+  );
+};
+
 const FlowCard = () => {
-  const { expenses } = useBudget();
+  const { expenses, income, totalIncome, totalSpent } = useBudget();
+  const { dues } = useDues();
+
+  const now = new Date();
+  const daysInMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0
+  ).getDate();
+  const daysLeft = daysInMonth - now.getDate() + 1; // today counts
+
+  // Unpaid dues are money already claimed — ring-fence them before dividing up.
+  const pendingDues = dues
+    .filter((d) => d.status !== "paid")
+    .reduce((sum, d) => sum + (d.amount || 0), 0);
+
+  const spentToday = expenses
+    .filter((e) => e.type !== "income" && isSameDay(e.date, now))
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  // The pot as it stood at the start of today, spread across the days that remain.
+  const potBeforeToday =
+    income + totalIncome - totalSpent + spentToday - pendingDues;
+  const dailyBudget = Math.max(potBeforeToday, 0) / daysLeft;
+
   return (
     <section className="card card-hover p-5 sm:p-6">
-      <SpendChart expenses={expenses} />
+      <SpendChart
+        expenses={expenses}
+        dailyBudget={dailyBudget}
+        daysLeft={daysLeft}
+      />
     </section>
   );
 };
