@@ -95,9 +95,22 @@ export const isSpend = (txn) => SPEND_TYPES.includes(txn.transactionType);
  */
 export const needsOwner = (txn) => isSpend(txn) || txn.transactionType === "REFUND";
 
-/** Refunds count against the owner's spending; everything else adds to it. */
+/**
+ * Rows that count toward a person's total.
+ *
+ * Everything that needs an owner, plus credits once you have assigned one.
+ * Cashback and surcharge waivers are earned by a particular purchase, so they
+ * come off that person's bill — but they are not chased in the review queue,
+ * since leaving one unassigned only means it is not netted off anyone.
+ * Payments never count: they settle the previous cycle.
+ */
+export const countsTowardOwner = (txn) =>
+  txn.transactionType !== "PAYMENT" && (needsOwner(txn) || Boolean(txn.ownerId));
+
+/** Refunds and credits reduce their owner's total; charges add to it. */
 export const ownerAmount = (txn) =>
-  (txn.transactionType === "REFUND" ? -1 : 1) * (Number(txn.amount) || 0);
+  (["REFUND", "CREDIT"].includes(txn.transactionType) ? -1 : 1) *
+  (Number(txn.amount) || 0);
 
 function toList(snapshotValue, idKey) {
   if (!snapshotValue) return [];
@@ -246,7 +259,7 @@ export const CreditCardProvider = ({ children }) => {
 
   /** Totals for the selected month: overall, per card, per owner. */
   const totals = useMemo(() => {
-    const rows = monthTransactions.filter(needsOwner);
+    const rows = monthTransactions.filter(countsTowardOwner);
     const byCard = {};
     const byOwner = {};
     let total = 0;
@@ -282,7 +295,7 @@ export const CreditCardProvider = ({ children }) => {
         .map((card) => {
           const statement = monthStatements.find((s) => s.cardId === card.id) || null;
           const rows = monthTransactions.filter((t) => t.cardId === card.id);
-          const owned = rows.filter(needsOwner);
+          const owned = rows.filter(countsTowardOwner);
           const byOwner = {};
           owned.forEach((txn) => {
             const key = txn.ownerId || UNASSIGNED;
@@ -306,7 +319,7 @@ export const CreditCardProvider = ({ children }) => {
   /** Month-over-month series for the trend section. */
   const monthlyTrend = useMemo(() => {
     const buckets = {};
-    transactions.filter(needsOwner).forEach((txn) => {
+    transactions.filter(countsTowardOwner).forEach((txn) => {
       const key = txn.statementMonth;
       if (!key) return;
       const bucket = (buckets[key] ??= { month: key, total: 0, emi: 0, byOwner: {}, byCard: {} });
