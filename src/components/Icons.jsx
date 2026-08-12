@@ -218,6 +218,14 @@ export const categoryVisual = (category = "") => {
   const key = category.toLowerCase();
   if (key.includes("grocer") || key.includes("food"))
     return { Icon: Basket, hue: "var(--color-mint)" };
+  if (key.includes("transport")) return { Icon: Layers, hue: "var(--color-iris)" };
+  if (key.includes("bill") || key.includes("utilit"))
+    return { Icon: Receipt, hue: "var(--color-amber)" };
+  if (key.includes("shop")) return { Icon: Basket, hue: "var(--color-violet)" };
+  if (key.includes("health")) return { Icon: Shield, hue: "var(--color-coral)" };
+  if (key.includes("entertain")) return { Icon: Sparkle, hue: "var(--color-violet)" };
+  // Bank and card names below are legacy: entries filed before payment method
+  // was its own field used the card name as the category.
   if (key.includes("hdfc")) return { Icon: Card, hue: "var(--color-iris)" };
   if (key.includes("sbi")) return { Icon: Card, hue: "var(--color-violet)" };
   if (key.includes("icic")) return { Icon: Card, hue: "var(--color-amber)" };

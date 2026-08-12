@@ -39,6 +39,9 @@ const SpendChart = ({ expenses = [], dailyBudget = null, daysLeft = 0 }) => {
 
     for (const e of expenses) {
       if (!e.date) continue;
+      // Card bill payments move cash but are not spending — the swipe they
+      // settle is already a bar on an earlier day.
+      if (e.type === "cardPayment") continue;
       const d = new Date(e.date);
       if (d.getFullYear() !== year || d.getMonth() !== month) continue;
       const slot = buckets[d.getDate() - 1];

@@ -5,6 +5,7 @@ import { firebaseDb } from "./firebase";
 import { useAuth } from "./context/AuthContext";
 import Loader from "./Loader";
 import MoneyInput, { toNumber } from "./components/MoneyInput";
+import { ACCOUNTS, CATEGORIES, DEFAULT_ACCOUNT, accountById } from "./constants";
 import {
   ArrowDownLeft,
   Calendar,
@@ -12,35 +13,26 @@ import {
   Check,
   Alert,
   Card,
-  Basket,
-  Layers,
+  Wallet,
 } from "./components/Icons";
 
 type Expense = {
   date: string;
   category: string;
-  description: string;
+  account: string;
+  note: string;
   amount: number;
 };
 
 const EXPENSES_REF_KEY = "expenses";
-
-/** Quick-add uses its own bank-account list, distinct from the budget categories. */
-const QUICK_CATEGORIES = [
-  { value: "Kotak", label: "Kotak Card", hue: "var(--color-coral)", Icon: Card },
-  { value: "ICICI", label: "ICICI", hue: "var(--color-amber)", Icon: Card },
-  { value: "SBI", label: "SBI", hue: "var(--color-violet)", Icon: Card },
-  { value: "HDFC", label: "HDFC", hue: "var(--color-iris)", Icon: Card },
-  { value: "GROCERY", label: "Grocery", hue: "var(--color-mint)", Icon: Basket },
-  { value: "MISC", label: "Misc", hue: "var(--color-mid)", Icon: Layers },
-];
 
 export default function App() {
   const { dataRoot } = useAuth();
   const [form, setForm] = useState<Expense>({
     date: new Date().toISOString().split("T")[0],
     category: "",
-    description: "",
+    account: DEFAULT_ACCOUNT,
+    note: "",
     amount: 0,
   });
   const [amountRaw, setAmountRaw] = useState("");
@@ -80,12 +72,7 @@ export default function App() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (
-      !form.date ||
-      !form.description ||
-      form.amount <= 0 ||
-      form.category === ""
-    ) {
+    if (!form.date || !form.note || form.amount <= 0 || form.category === "") {
       setMessage({ kind: "err", text: "Fill every field before saving." });
       return;
     }
@@ -101,12 +88,16 @@ export default function App() {
       const expensesRef = ref(firebaseDb, `${dataRoot}/${EXPENSES_REF_KEY}`);
       await push(expensesRef, {
         ...form,
+        // Quick-add used to save no type at all, which kept these rows out of
+        // every dashboard total.
+        type: "expense",
         createdAt: Date.now(),
       });
       setForm({
         date: new Date().toISOString().split("T")[0],
         category: "",
-        description: "",
+        account: DEFAULT_ACCOUNT,
+        note: "",
         amount: 0,
       });
       setAmountRaw("");
@@ -168,34 +159,37 @@ export default function App() {
 
             <div>
               <label
-                htmlFor="description"
+                htmlFor="note"
                 className="eyebrow mb-2 flex items-center gap-1.5"
               >
                 <Note className="h-3.5 w-3.5" />
                 Description
               </label>
               <input
-                id="description"
+                id="note"
                 type="text"
-                name="description"
+                name="note"
                 placeholder="What was this for?"
-                value={form.description}
+                value={form.note}
                 onChange={handleChange}
                 className="field"
               />
             </div>
 
+            {/* Paid with — a card here means the spend counts now but your bank
+                balance only moves when you record the bill payment. */}
             <div>
-              <label className="eyebrow mb-2 block">Account</label>
+              <label className="eyebrow mb-2 block">Paid with</label>
               <div className="grid grid-cols-3 gap-1.5">
-                {QUICK_CATEGORIES.map(({ value, label, hue, Icon }) => {
-                  const active = form.category === value;
+                {ACCOUNTS.map(({ id, short, kind, hue }) => {
+                  const active = form.account === id;
+                  const Icon = kind === "card" ? Card : Wallet;
                   return (
                     <button
-                      key={value}
+                      key={id}
                       type="button"
                       onClick={() => {
-                        setForm((p) => ({ ...p, category: value }));
+                        setForm((p) => ({ ...p, account: id }));
                         if (message) setMessage(null);
                       }}
                       className="flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-[11px] font-semibold transition-all duration-200 active:scale-[0.96]"
@@ -210,11 +204,36 @@ export default function App() {
                       }}
                     >
                       <Icon className="h-4 w-4" />
-                      {label}
+                      {short}
                     </button>
                   );
                 })}
               </div>
+              <p className="mt-2 text-[11px] text-low">
+                {accountById(form.account).kind === "card"
+                  ? "Adds to that card's outstanding until you pay the bill."
+                  : "Comes out of your bank balance right away."}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="category" className="eyebrow mb-2 block">
+                Category
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={form.category}
+                onChange={handleChange}
+                className="field"
+              >
+                <option value="">Select category</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
