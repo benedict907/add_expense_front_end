@@ -22,6 +22,34 @@ A comprehensive budget tracking module built with React and Tailwind CSS that pr
 - Calculate total spent vs. total income
 - Real-time balance display with color coding
 
+### 💳 Cards vs. cash
+
+Every entry records **what** it was (category) and **what paid for it**
+(account: `Cash / Bank`, or one of the cards). A card swipe is two facts, not
+one — you spent the money, but your bank balance did not move — so the module
+keeps three figures instead of pretending one covers it:
+
+| Figure | Meaning |
+| --- | --- |
+| `totalSpent` | Every rupee spent this month, whatever paid for it. What category budgets measure against. |
+| `bankBalance` | Cash actually available. Card swipes never touch it; card bill payments do, on the day you pay them. |
+| `cardOutstanding` | Card spending not yet settled by a bill payment. Runs across months, not just the current one. |
+
+The headline **Safe to spend** = `bankBalance − cardOutstanding`.
+
+The rule that keeps this honest: **paying a card bill is a transfer, not an
+expense** (entry type `cardPayment`). It moves cash and clears debt, but is
+never added to `totalSpent` or to a category — that spending was already
+counted at swipe time, and counting it again would double every rupee that
+ever touched a card.
+
+The math lives in `src/utils/accounting.js` and is covered by
+`src/utils/accounting.test.js` (`npm test`).
+
+Entries written before accounts existed used the bank or card name as the
+category (`HDFC`, `SBI`, `ICIC`, `KOTAK`). Those are read as "paid with that
+card" by `normalizeEntry` at load time — nothing in the database is rewritten.
+
 ### 📈 6-Month Projection
 - Automatic calculation of 6-month spending projections
 - Based on current month's spending patterns

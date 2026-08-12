@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { useBudget } from "../context/BudgetContext";
 import Segmented from "./Segmented";
-import { categoryVisual, Trash, Inbox, Receipt, TrendUp } from "./Icons";
+import { accountById } from "../constants";
+import { EXPENSE, INCOME, CARD_PAYMENT } from "../utils/accounting";
+import { categoryVisual, Trash, Inbox, Receipt, TrendUp, Card } from "./Icons";
+
+const EMPTY_LABELS = {
+  all: "entries",
+  [EXPENSE]: "expenses",
+  [INCOME]: "income",
+  [CARD_PAYMENT]: "card payments",
+};
 
 const SORTS = [
   { field: "date", label: "Date" },
@@ -75,10 +84,12 @@ const ExpenseTable = () => {
       maximumFractionDigits: 2,
     }).format(amount);
 
-  const net = filteredExpenses.reduce(
-    (sum, e) => sum + (e.type === "income" ? 1 : -1) * (Number(e.amount) || 0),
-    0
-  );
+  // Card bill payments sit out of the net: the spending they settle was
+  // already counted when it was swiped.
+  const net = filteredExpenses.reduce((sum, e) => {
+    if (e.type === CARD_PAYMENT) return sum;
+    return sum + (e.type === INCOME ? 1 : -1) * (Number(e.amount) || 0);
+  }, 0);
 
   return (
     <section className="card card-hover p-5 sm:p-6">
@@ -107,23 +118,29 @@ const ExpenseTable = () => {
         </div>
 
         <Segmented
-          className="w-[11.5rem] shrink-0"
+          className="w-[15rem] shrink-0"
           size="sm"
           value={filterType}
           onChange={setFilterType}
           options={[
             { value: "all", label: "All" },
             {
-              value: "expense",
+              value: EXPENSE,
               label: "Out",
               fill: "rgba(255,111,94,0.22)",
               text: "var(--color-coral)",
             },
             {
-              value: "income",
+              value: INCOME,
               label: "In",
               fill: "rgba(69,224,189,0.2)",
               text: "var(--color-mint)",
+            },
+            {
+              value: CARD_PAYMENT,
+              label: "Bills",
+              fill: "rgba(150,130,255,0.22)",
+              text: "var(--color-iris)",
             },
           ]}
         />
@@ -171,9 +188,7 @@ const ExpenseTable = () => {
           <span className="tile h-10 w-10 text-low">
             <Inbox className="h-5 w-5" />
           </span>
-          <p className="text-sm text-mid">
-            No {filterType === "all" ? "entries" : filterType + "s"} yet
-          </p>
+          <p className="text-sm text-mid">No {EMPTY_LABELS[filterType]} yet</p>
           <p className="max-w-[16rem] text-xs text-low">
             Anything you record this month lands here instantly.
           </p>
@@ -181,11 +196,17 @@ const ExpenseTable = () => {
       ) : (
         <ul className="-mx-1.5 max-h-[26rem] space-y-1 overflow-y-auto px-1.5">
           {filteredExpenses.map((expense, i) => {
-            const income = expense.type === "income";
-            const over = isOverBudget(expense.category);
+            const income = expense.type === INCOME;
+            const billPayment = expense.type === CARD_PAYMENT;
+            const account = accountById(expense.account);
+            const over = !billPayment && isOverBudget(expense.category);
             const overBy = over ? getOverspentAmount(expense.category) : 0;
             const { Icon, hue } = categoryVisual(expense.category);
-            const tone = income ? "var(--color-mint)" : hue;
+            const tone = income
+              ? "var(--color-mint)"
+              : billPayment
+              ? "var(--color-iris)"
+              : hue;
 
             return (
               <li
@@ -205,6 +226,8 @@ const ExpenseTable = () => {
                 >
                   {income ? (
                     <TrendUp className="h-4 w-4" />
+                  ) : billPayment ? (
+                    <Card className="h-4 w-4" />
                   ) : (
                     <Icon className="h-4 w-4" />
                   )}
@@ -212,14 +235,31 @@ const ExpenseTable = () => {
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-medium text-hi">
-                    {expense.note || expense.category || "Untitled"}
+                    {expense.note ||
+                      (billPayment
+                        ? `${account.short} bill`
+                        : expense.category) ||
+                      "Untitled"}
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-low">
                     <span className="tnum">{formatDate(expense.date)}</span>
                     <span aria-hidden>·</span>
                     <span className={over ? "text-coral" : ""}>
-                      {expense.category}
+                      {billPayment ? "Card payment" : expense.category}
                     </span>
+                    {/* How it was paid — the difference between money gone and
+                        money owed. */}
+                    {!income && account.kind === "card" && (
+                      <span
+                        className="badge"
+                        style={{
+                          color: account.hue,
+                          background: `color-mix(in srgb, ${account.hue} 12%, transparent)`,
+                        }}
+                      >
+                        {billPayment ? `paid ${account.short}` : account.short}
+                      </span>
+                    )}
                     {over && (
                       <span className="badge bg-coral/12 text-coral">
                         over by {formatAmount(overBy)}
@@ -230,7 +270,7 @@ const ExpenseTable = () => {
 
                 <p
                   className={`tnum shrink-0 text-[15px] font-medium ${
-                    income ? "text-mint" : "text-hi"
+                    income ? "text-mint" : billPayment ? "text-mid" : "text-hi"
                   }`}
                 >
                   {income ? "+" : "−"}

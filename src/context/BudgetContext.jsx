@@ -9,6 +9,8 @@ import { ref, onValue, push, remove, set, get } from "firebase/database";
 import { firebaseDb } from "../firebase";
 import { useAuth } from "./AuthContext";
 import { useDues } from "./DuesContext";
+import { DEFAULT_ACCOUNT } from "../constants";
+import { normalizeEntry, summarize, EXPENSE } from "../utils/accounting";
 
 const BudgetContext = createContext();
 const EXPENSES_REF_KEY = "expenses";
@@ -31,18 +33,13 @@ export const useBudget = () => {
   return context;
 };
 
-// Normalize Firebase snapshot to array of expenses with id = Firebase key
+// Normalize Firebase snapshot to array of expenses with id = Firebase key.
+// normalizeEntry backfills the payment method on rows written before accounts
+// existed, so old data reads correctly without being rewritten.
 function snapshotToExpenses(snapshot) {
   const data = snapshot.val();
   if (!data) return [];
-  return Object.entries(data).map(([id, row]) => ({
-    id,
-    ...row,
-    date:
-      row.date ||
-      (row.createdAt && new Date(row.createdAt).toISOString().split("T")[0]) ||
-      "",
-  }));
+  return Object.entries(data).map(([id, row]) => normalizeEntry({ id, ...row }));
 }
 
 function pathWithRoot(dataRoot, ...segments) {
@@ -123,7 +120,7 @@ export const BudgetProvider = ({ children }) => {
   useEffect(() => {
     if (firebaseDb) return;
     const saved = localStorage.getItem("budgetExpenses");
-    if (saved) setExpenses(JSON.parse(saved));
+    if (saved) setExpenses(JSON.parse(saved).map(normalizeEntry));
   }, []);
 
   // When Firebase is not configured, persist expenses to localStorage (skip until we've loaded)
@@ -171,7 +168,8 @@ export const BudgetProvider = ({ children }) => {
       ...expense,
       date: expense.date || new Date().toISOString().split("T")[0],
       createdAt: Date.now(),
-      type: expense.type ?? "expense",
+      type: expense.type ?? EXPENSE,
+      account: expense.account ?? DEFAULT_ACCOUNT,
     };
     if (firebaseDb && dataRoot) {
       const expensesRef = ref(
@@ -180,7 +178,7 @@ export const BudgetProvider = ({ children }) => {
       );
       push(expensesRef, payload);
     } else if (!firebaseDb) {
-      const newExpense = { id: Date.now().toString(), ...payload };
+      const newExpense = normalizeEntry({ id: Date.now().toString(), ...payload });
       setExpenses((prev) => [...prev, newExpense]);
     }
   };
@@ -208,32 +206,30 @@ export const BudgetProvider = ({ children }) => {
     setIncome(newIncome);
   };
 
-  // Calculate totals for current month (expenses + current month dues so total spent includes dues)
+  // Every figure for the current month, in one pass. See utils/accounting.js
+  // for why spending, bank balance and card outstanding are three numbers.
   const currentMonthKey = getMonthKey(new Date());
-  const currentMonthExpenses = expenses.filter((expense) => {
-    if (!expense.date) return false;
-    return getMonthKey(expense.date) === currentMonthKey;
+  const {
+    totalSpent,
+    spentInCash,
+    spentOnCards,
+    extraIncome: totalIncome,
+    grossIncome,
+    billsPaid,
+    bankBalance,
+    outstandingByCard,
+    cardOutstanding,
+    safeToSpend,
+    categorySpending,
+  } = summarize(expenses, {
+    income,
+    paidDues: totalPaidDuesAmount ?? 0,
+    monthKey: currentMonthKey,
   });
 
-  const expensesTotal = currentMonthExpenses
-    .filter((expense) => expense.type === "expense")
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-  const totalSpent = expensesTotal + (totalPaidDuesAmount ?? 0);
-
-  const totalIncome = currentMonthExpenses
-    .filter((expense) => expense.type === "income")
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-
-  const balance = income + totalIncome - totalSpent;
-
-  // Calculate category-wise spending for current month
-  const categorySpending = currentMonthExpenses
-    .filter((expense) => expense.type === "expense")
-    .reduce((acc, expense) => {
-      const category = expense.category || "Uncategorized";
-      acc[category] = (acc[category] || 0) + (expense.amount || 0);
-      return acc;
-    }, {});
+  // `balance` is what the dashboard leads with, and it stays the honest
+  // headline: cash you hold, less what the cards will claim back.
+  const balance = safeToSpend;
 
   // Check if category is over budget
   const isOverBudget = (category) => {
@@ -264,8 +260,16 @@ export const BudgetProvider = ({ children }) => {
     setBudget,
     updateIncome,
     totalSpent,
+    spentInCash,
+    spentOnCards,
     totalIncome,
+    grossIncome,
+    billsPaid,
     balance,
+    safeToSpend,
+    bankBalance,
+    cardOutstanding,
+    outstandingByCard,
     categorySpending,
     isOverBudget,
     getOverspentAmount,

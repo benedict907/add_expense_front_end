@@ -18,7 +18,6 @@ import {
   Logout,
   Plus,
   Bell,
-  Receipt,
   Chart,
   TrendDown,
   Alert,
@@ -41,18 +40,12 @@ const UpcomingDuesCount = () => {
 };
 
 const PulseStrip = () => {
-  const { expenses, totalSpent, categorySpending } = useBudget();
+  const { totalSpent, spentOnCards, cardOutstanding, categorySpending } =
+    useBudget();
   const { dues } = useDues();
 
   const pending = dues.filter((d) => d.status !== "paid");
   const pendingTotal = pending.reduce((s, d) => s + (d.amount || 0), 0);
-
-  const now = new Date();
-  const txCount = expenses.filter((e) => {
-    if (!e.date) return false;
-    const d = new Date(e.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
 
   const topCategory = Object.entries(categorySpending).sort(
     (a, b) => b[1] - a[1]
@@ -65,22 +58,25 @@ const PulseStrip = () => {
       format: currency0,
       Icon: TrendDown,
       hue: "var(--color-coral)",
-      sub: "this month",
+      sub:
+        spentOnCards > 0
+          ? `${currency0(spentOnCards)} on cards`
+          : "this month",
     },
     {
-      label: "Entries",
-      value: txCount,
-      format: (n) => String(Math.round(n)),
-      Icon: Receipt,
-      hue: "var(--color-violet)",
-      sub: "recorded",
+      label: "Owed on cards",
+      value: cardOutstanding,
+      format: currency0,
+      Icon: CardIcon,
+      hue: "var(--color-amber)",
+      sub: cardOutstanding > 0 ? "bill not yet paid" : "all settled",
     },
     {
       label: "Dues left",
       value: pendingTotal,
       format: currency0,
       Icon: Bell,
-      hue: "var(--color-amber)",
+      hue: "var(--color-violet)",
       sub: `${pending.length} pending`,
     },
     {
@@ -129,7 +125,7 @@ const isSameDay = (value, day) => {
 };
 
 const FlowCard = () => {
-  const { expenses, income, totalIncome, totalSpent } = useBudget();
+  const { expenses, safeToSpend } = useBudget();
   const { dues } = useDues();
 
   const now = new Date();
@@ -146,12 +142,13 @@ const FlowCard = () => {
     .reduce((sum, d) => sum + (d.amount || 0), 0);
 
   const spentToday = expenses
-    .filter((e) => e.type !== "income" && isSameDay(e.date, now))
+    .filter((e) => e.type === "expense" && isSameDay(e.date, now))
     .reduce((sum, e) => sum + (e.amount || 0), 0);
 
-  // The pot as it stood at the start of today, spread across the days that remain.
-  const potBeforeToday =
-    income + totalIncome - totalSpent + spentToday - pendingDues;
+  // The pot as it stood at the start of today, spread across the days that
+  // remain. Built on safe-to-spend, so a card swipe eats into the allowance
+  // the day you make it rather than the day the bill lands.
+  const potBeforeToday = safeToSpend + spentToday - pendingDues;
   const dailyBudget = Math.max(potBeforeToday, 0) / daysLeft;
 
   return (

@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import { useBudget } from "../context/BudgetContext";
-import { CATEGORIES } from "../constants";
+import {
+  CATEGORIES,
+  ACCOUNTS,
+  CARD_ACCOUNTS,
+  DEFAULT_ACCOUNT,
+  accountById,
+} from "../constants";
+import { EXPENSE, INCOME, CARD_PAYMENT } from "../utils/accounting";
 import MoneyInput, { toNumber } from "./MoneyInput";
 import Segmented from "./Segmented";
 import {
@@ -11,17 +18,29 @@ import {
   Note,
   Check,
   Plus,
+  Card,
+  Wallet,
 } from "./Icons";
 
+const blankForm = () => ({
+  category: "",
+  amount: "",
+  type: EXPENSE,
+  account: DEFAULT_ACCOUNT,
+  date: new Date().toISOString().split("T")[0],
+  note: "",
+});
+
+const currency0 = (n) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(n);
+
 const ExpenseForm = () => {
-  const { addExpense } = useBudget();
-  const [formData, setFormData] = useState({
-    category: "",
-    amount: "",
-    type: "expense",
-    date: new Date().toISOString().split("T")[0],
-    note: "",
-  });
+  const { addExpense, outstandingByCard } = useBudget();
+  const [formData, setFormData] = useState(blankForm);
   const [error, setError] = useState("");
   const [justSaved, setJustSaved] = useState(false);
 
@@ -36,24 +55,50 @@ const ExpenseForm = () => {
     if (error) setError("");
   };
 
+  // Switching mode carries the amount over but resets what no longer applies:
+  // income always lands in the bank, a card bill always leaves from a card.
+  const setType = (type) => {
+    setFormData((prev) => ({
+      ...prev,
+      type,
+      account:
+        type === CARD_PAYMENT
+          ? accountById(prev.account).kind === "card"
+            ? prev.account
+            : CARD_ACCOUNTS[0].id
+          : type === INCOME
+          ? DEFAULT_ACCOUNT
+          : prev.account,
+      category: type === CARD_PAYMENT ? "" : prev.category,
+    }));
+    if (error) setError("");
+  };
+
+  const isExpense = formData.type === EXPENSE;
+  const isIncome = formData.type === INCOME;
+  const isBillPayment = formData.type === CARD_PAYMENT;
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const amount = toNumber(formData.amount);
-    if (!formData.category || amount <= 0) {
+    if (amount <= 0) {
+      setError("Enter an amount above 0.");
+      return;
+    }
+    if (isBillPayment) {
+      if (accountById(formData.account).kind !== "card") {
+        setError("Pick the card you paid.");
+        return;
+      }
+    } else if (!formData.category) {
       setError("Pick a category and enter an amount above 0.");
       return;
     }
 
     addExpense({ ...formData, amount });
 
-    setFormData({
-      category: "",
-      amount: "",
-      type: "expense",
-      date: new Date().toISOString().split("T")[0],
-      note: "",
-    });
+    setFormData(blankForm());
     setError("");
 
     // Brief confirmation on the submit button, then back to normal.
@@ -61,8 +106,15 @@ const ExpenseForm = () => {
     setTimeout(() => setJustSaved(false), 1600);
   };
 
-  const isExpense = formData.type === "expense";
-  const accent = isExpense ? "var(--color-coral)" : "var(--color-mint)";
+  const accent = isBillPayment
+    ? "var(--color-iris)"
+    : isExpense
+    ? "var(--color-coral)"
+    : "var(--color-mint)";
+
+  // A bill can only be paid off a card; income only ever arrives in the bank.
+  const accountOptions = isBillPayment ? CARD_ACCOUNTS : ACCOUNTS;
+  const owedOnSelected = outstandingByCard?.[formData.account] ?? 0;
 
   return (
     <section className="card card-hover overflow-hidden p-5 sm:p-6">
@@ -82,21 +134,28 @@ const ExpenseForm = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <Segmented
           value={formData.type}
-          onChange={(type) => setFormData((p) => ({ ...p, type }))}
+          onChange={setType}
           options={[
             {
-              value: "expense",
+              value: EXPENSE,
               label: "Expense",
               icon: <TrendDown className="h-3.5 w-3.5" />,
               fill: "linear-gradient(140deg,#ff8f80,var(--color-coral))",
               text: "#2a0700",
             },
             {
-              value: "income",
+              value: INCOME,
               label: "Income",
               icon: <TrendUp className="h-3.5 w-3.5" />,
               fill: "linear-gradient(140deg,#7cecd3,var(--color-mint))",
               text: "#00281f",
+            },
+            {
+              value: CARD_PAYMENT,
+              label: "Card bill",
+              icon: <Card className="h-3.5 w-3.5" />,
+              fill: "linear-gradient(140deg,#b9a8ff,var(--color-iris))",
+              text: "#12042e",
             },
           ]}
         />
@@ -111,6 +170,66 @@ const ExpenseForm = () => {
           />
         </div>
 
+        {/* Paid with / Paid off — the field that decides whether this touches
+            the bank balance now or only the card's outstanding. */}
+        {!isIncome && (
+          <div>
+            <label className="eyebrow mb-2 flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5" />
+              {isBillPayment ? "Which card did you pay?" : "Paid with"}
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {accountOptions.map(({ id, label, short, kind, hue }) => {
+                const active = formData.account === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    data-active={active}
+                    onClick={() => {
+                      setFormData((p) => ({ ...p, account: id }));
+                      if (error) setError("");
+                    }}
+                    className="chip"
+                    style={
+                      active
+                        ? {
+                            color: hue,
+                            borderColor: `color-mix(in srgb, ${hue} 40%, transparent)`,
+                            background: `color-mix(in srgb, ${hue} 12%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    {kind === "card" ? (
+                      <Card className="h-3.5 w-3.5" />
+                    ) : (
+                      <Wallet className="h-3.5 w-3.5" />
+                    )}
+                    {isBillPayment ? short : label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-2 text-[11px] text-low">
+              {isBillPayment ? (
+                <>
+                  Settles the card. Outstanding on{" "}
+                  {accountById(formData.account).short}:{" "}
+                  <span className="tnum text-mid">{currency0(owedOnSelected)}</span>
+                  . Not counted as new spending.
+                </>
+              ) : accountById(formData.account).kind === "card" ? (
+                "Counts as spending now; your bank balance moves when you pay the bill."
+              ) : (
+                "Leaves your bank balance straight away."
+              )}
+            </p>
+          </div>
+        )}
+
+        {!isBillPayment && (
         <div>
           <label className="eyebrow mb-2 block">Category</label>
           <select
@@ -160,6 +279,7 @@ const ExpenseForm = () => {
             })}
           </div>
         </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -185,7 +305,7 @@ const ExpenseForm = () => {
               name="note"
               value={formData.note}
               onChange={handleChange}
-              placeholder="Optional"
+              placeholder={isBillPayment ? "e.g. August statement" : "Optional"}
               className="field"
             />
           </div>
@@ -200,13 +320,23 @@ const ExpenseForm = () => {
         <button
           type="submit"
           className={`btn w-full py-3.5 text-[15px] ${
-            justSaved ? "btn-mint" : isExpense ? "btn-danger" : "btn-mint"
+            justSaved || isIncome ? "btn-mint" : isExpense ? "btn-danger" : "btn-soft"
           }`}
+          style={
+            !justSaved && isBillPayment
+              ? { color: accent, borderColor: `color-mix(in srgb, ${accent} 40%, transparent)` }
+              : undefined
+          }
         >
           {justSaved ? (
             <>
               <Check className="h-4 w-4" />
               Saved
+            </>
+          ) : isBillPayment ? (
+            <>
+              <Card className="h-4 w-4" />
+              Record card payment
             </>
           ) : (
             <>
