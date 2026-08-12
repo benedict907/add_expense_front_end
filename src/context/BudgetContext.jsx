@@ -49,7 +49,9 @@ function pathWithRoot(dataRoot, ...segments) {
 
 export const BudgetProvider = ({ children }) => {
   const { dataRoot } = useAuth();
-  const { totalPaidDuesAmount } = useDues();
+  // Every month's dues: card bills settle swipes made in an earlier month, so
+  // the settlement has to outlive the month it was paid in.
+  const { allDues } = useDues();
   const [expenses, setExpenses] = useState([]);
   const [budgets, setBudgets] = useState({});
   const [income, setIncome] = useState(100000); // Default ₹100,000
@@ -213,6 +215,8 @@ export const BudgetProvider = ({ children }) => {
     totalSpent,
     spentInCash,
     spentOnCards,
+    paidSpendDues,
+    pendingSpendDues,
     extraIncome: totalIncome,
     grossIncome,
     billsPaid,
@@ -223,7 +227,7 @@ export const BudgetProvider = ({ children }) => {
     categorySpending,
   } = summarize(expenses, {
     income,
-    paidDues: totalPaidDuesAmount ?? 0,
+    dues: allDues ?? [],
     monthKey: currentMonthKey,
   });
 
@@ -262,6 +266,8 @@ export const BudgetProvider = ({ children }) => {
     totalSpent,
     spentInCash,
     spentOnCards,
+    paidSpendDues,
+    pendingSpendDues,
     totalIncome,
     grossIncome,
     billsPaid,

@@ -84,17 +84,84 @@ describe("outstanding across months", () => {
   });
 });
 
-describe("income and dues", () => {
+describe("income and ordinary dues", () => {
+  const rent = { amount: 3000, status: "paid", monthKey: MONTH };
+
   it("adds extra income to the bank", () => {
     const { grossIncome, bankBalance } = run([{ amount: 5000, type: INCOME }]);
     expect(grossIncome).toBe(105000);
     expect(bankBalance).toBe(105000);
   });
 
-  it("treats paid dues as cash already gone", () => {
-    const { totalSpent, bankBalance } = run([], { paidDues: 3000 });
+  it("treats a paid due with no card as cash already gone", () => {
+    const { totalSpent, bankBalance } = run([], { dues: [rent] });
     expect(totalSpent).toBe(3000);
     expect(bankBalance).toBe(97000);
+  });
+
+  it("ignores dues from other months in this month's cash", () => {
+    const { totalSpent, bankBalance } = run([], {
+      dues: [{ ...rent, monthKey: "2026-07" }],
+    });
+    expect(totalSpent).toBe(0);
+    expect(bankBalance).toBe(100000);
+  });
+});
+
+describe("a due that settles a card", () => {
+  // 2000 swiped on HDFC, with the bill sitting in this month's dues.
+  const swipe = [{ amount: 2000, account: "hdfc" }];
+  const bill = { amount: 2000, account: "hdfc", monthKey: MONTH };
+
+  it("does not count as spending while pending", () => {
+    const { totalSpent, cardOutstanding } = run(swipe, {
+      dues: [{ ...bill, status: "pending" }],
+    });
+    expect(totalSpent).toBe(2000);
+    expect(cardOutstanding).toBe(2000);
+  });
+
+  it("is not double counted once paid", () => {
+    // The old behaviour added every paid due to spending, so this swipe was
+    // counted twice: 2000 at the till and 2000 again at the bill.
+    const { totalSpent } = run(swipe, { dues: [{ ...bill, status: "paid" }] });
+    expect(totalSpent).toBe(2000);
+  });
+
+  it("moves the cash and clears the card when paid", () => {
+    const { bankBalance, cardOutstanding, safeToSpend } = run(swipe, {
+      dues: [{ ...bill, status: "paid" }],
+    });
+    expect(bankBalance).toBe(98000);
+    expect(cardOutstanding).toBe(0);
+    expect(safeToSpend).toBe(98000); // unchanged by the act of paying
+  });
+
+  it("keeps settling the card in later months", () => {
+    // July's swipe, paid off by July's bill, viewed from August. The bill has
+    // scrolled out of the current month but the debt it cleared has not.
+    const { cardOutstanding, bankBalance } = run(
+      [{ amount: 5000, account: "sbi", date: "2026-07-14" }],
+      {
+        dues: [
+          { amount: 5000, account: "sbi", status: "paid", monthKey: "2026-07" },
+        ],
+      }
+    );
+    expect(cardOutstanding).toBe(0);
+    expect(bankBalance).toBe(100000); // paid in July, not out of August's cash
+  });
+
+  it("is left out of the pending-dues ring fence", () => {
+    // Outstanding already holds this money back inside safeToSpend; fencing
+    // the pending due too would subtract the same bill twice.
+    const { pendingSpendDues } = run(swipe, {
+      dues: [
+        { ...bill, status: "pending" },
+        { amount: 9000, status: "pending", monthKey: MONTH }, // rent
+      ],
+    });
+    expect(pendingSpendDues).toBe(9000);
   });
 });
 

@@ -125,8 +125,7 @@ const isSameDay = (value, day) => {
 };
 
 const FlowCard = () => {
-  const { expenses, safeToSpend } = useBudget();
-  const { dues } = useDues();
+  const { expenses, safeToSpend, pendingSpendDues } = useBudget();
 
   const now = new Date();
   const daysInMonth = new Date(
@@ -137,10 +136,8 @@ const FlowCard = () => {
   const daysLeft = daysInMonth - now.getDate() + 1; // today counts
 
   // Unpaid dues are money already claimed — ring-fence them before dividing up.
-  const pendingDues = dues
-    .filter((d) => d.status !== "paid")
-    .reduce((sum, d) => sum + (d.amount || 0), 0);
-
+  // Card dues are excluded: the outstanding inside safeToSpend is already
+  // holding that money back, and fencing it twice would halve the allowance.
   const spentToday = expenses
     .filter((e) => e.type === "expense" && isSameDay(e.date, now))
     .reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -148,7 +145,7 @@ const FlowCard = () => {
   // The pot as it stood at the start of today, spread across the days that
   // remain. Built on safe-to-spend, so a card swipe eats into the allowance
   // the day you make it rather than the day the bill lands.
-  const potBeforeToday = safeToSpend + spentToday - pendingDues;
+  const potBeforeToday = safeToSpend + spentToday - pendingSpendDues;
   const dailyBudget = Math.max(potBeforeToday, 0) / daysLeft;
 
   return (

@@ -43,6 +43,24 @@ never added to `totalSpent` or to a category — that spending was already
 counted at swipe time, and counting it again would double every rupee that
 ever touched a card.
 
+### Dues that are card bills
+
+The same rule holds whichever door the payment comes through. A due can name
+the card it settles (`account`), and then marking it paid behaves exactly like
+a `cardPayment`: cash out, outstanding down, spending untouched. A due that
+names no card is an ordinary bill — rent, a SIP — and counts as spending when
+paid, as before.
+
+Two consequences:
+
+- `DuesContext` subscribes to **all** months under `dues`, not just the current
+  one. A bill paid in September settles August's swipes, and that settlement
+  has to keep counting when you are looking at October. Only the cash side of a
+  due is month-scoped.
+- Pending *card* dues are left out of the daily-allowance ring fence
+  (`pendingSpendDues`). The outstanding inside `safeToSpend` is already holding
+  that money back; fencing it again would subtract the same bill twice.
+
 The math lives in `src/utils/accounting.js` and is covered by
 `src/utils/accounting.test.js` (`npm test`).
 
