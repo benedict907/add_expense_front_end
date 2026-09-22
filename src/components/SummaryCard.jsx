@@ -1,11 +1,20 @@
 import React, { useState } from "react";
 import { useBudget } from "../context/BudgetContext";
-import { CATEGORIES } from "../constants";
+import { CATEGORIES, accountById } from "../constants";
 import MoneyInput, { toNumber } from "./MoneyInput";
 import Modal from "./Modal";
 import AnimatedNumber from "./AnimatedNumber";
 import CategoryDonut from "./CategoryDonut";
-import { categoryVisual, Target, Plus, Wallet, TrendUp, TrendDown, Alert } from "./Icons";
+import {
+  categoryVisual,
+  Target,
+  Plus,
+  Wallet,
+  TrendUp,
+  TrendDown,
+  Alert,
+  Card,
+} from "./Icons";
 
 const currency = (amount) =>
   new Intl.NumberFormat("en-IN", {
@@ -20,7 +29,11 @@ const SummaryCard = () => {
     income,
     totalSpent,
     totalIncome,
+    spentOnCards,
     balance,
+    bankBalance,
+    cardOutstanding,
+    outstandingByCard,
     categorySpending,
     budgets,
     setBudget,
@@ -58,6 +71,10 @@ const SummaryCard = () => {
 
   const positive = balance >= 0;
   const grossIncome = income + totalIncome;
+  // Cards you actually owe something on, biggest first.
+  const owedCards = Object.entries(outstandingByCard || {})
+    .filter(([, owed]) => Math.abs(owed) >= 1)
+    .sort((a, b) => b[1] - a[1]);
   // Share of income consumed — drives the hero meter.
   const burn = grossIncome > 0 ? Math.min((totalSpent / grossIncome) * 100, 100) : 0;
 
@@ -85,7 +102,7 @@ const SummaryCard = () => {
                 <Wallet className="h-4 w-4" />
               </span>
               <div>
-                <p className="eyebrow">Available balance</p>
+                <p className="eyebrow">Safe to spend</p>
                 <p className="text-[11px] text-low">
                   {new Date().toLocaleDateString("en-IN", {
                     month: "long",
@@ -110,6 +127,24 @@ const SummaryCard = () => {
             }`}
           >
             <AnimatedNumber value={balance} format={currency} duration={1100} />
+          </p>
+
+          {/* The big number is cash less what the cards will claim back. Both
+              halves are spelled out so it never looks like money appeared or
+              vanished. */}
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-low">
+            <span className="tnum">
+              {currency(bankBalance)} <span className="text-low">in bank</span>
+            </span>
+            {cardOutstanding !== 0 && (
+              <>
+                <span aria-hidden>−</span>
+                <span className="tnum text-amber">
+                  {currency(cardOutstanding)}{" "}
+                  <span className="text-low">owed on cards</span>
+                </span>
+              </>
+            )}
           </p>
 
           <div className="mt-4 flex items-center gap-2.5">
@@ -156,9 +191,49 @@ const SummaryCard = () => {
               <p className="tnum mt-1.5 text-lg font-medium text-hi">
                 <AnimatedNumber value={totalSpent} format={currency} />
               </p>
-              <p className="mt-0.5 text-[11px] text-low">Spends + paid dues</p>
+              <p className="mt-0.5 text-[11px] text-low">
+                {spentOnCards > 0
+                  ? `${currency(spentOnCards)} of it on cards`
+                  : "Spends + paid dues"}
+              </p>
             </div>
           </div>
+
+          {/* What the cards will come back for. Not spending — this money is
+              already counted above; it is a debt waiting for its bill. */}
+          {owedCards.length > 0 && (
+            <div className="well mt-2.5 p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 text-amber">
+                  <Card className="h-3.5 w-3.5" />
+                  <span className="eyebrow text-amber/80">Owed on cards</span>
+                </div>
+                <span className="tnum text-lg font-medium text-hi">
+                  <AnimatedNumber value={cardOutstanding} format={currency} />
+                </span>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {owedCards.map(([id, owed]) => {
+                  const { short, hue } = accountById(id);
+                  return (
+                    <span
+                      key={id}
+                      className="badge tnum"
+                      style={{
+                        color: hue,
+                        background: `color-mix(in srgb, ${hue} 12%, transparent)`,
+                      }}
+                    >
+                      {short} {currency(owed)}
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-low">
+                Already counted in money out. Log the bill payment when you settle it.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

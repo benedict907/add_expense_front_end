@@ -7,6 +7,7 @@ import MoneyInput, { toNumber } from "./MoneyInput";
 import Modal from "./Modal";
 import Segmented from "./Segmented";
 import AnimatedNumber from "./AnimatedNumber";
+import { CARD_ACCOUNTS, accountById, isCardAccount } from "../constants";
 import {
   Bell,
   Plus,
@@ -18,7 +19,66 @@ import {
   Note,
   Inbox,
   Pencil,
+  Card,
+  Wallet,
 } from "./Icons";
+
+const NOT_A_CARD = "";
+
+/**
+ * Which card a due settles, if any.
+ *
+ * A due that names a card is a transfer: paying it clears that card's
+ * outstanding instead of counting as new spending, because the swipes behind
+ * it were already counted when they were made. A due that names nothing is an
+ * ordinary bill and counts as spending when paid.
+ */
+const CardPicker = ({ value, onChange }) => (
+  <div className="flex flex-wrap gap-1.5">
+    <button
+      type="button"
+      data-active={!isCardAccount(value)}
+      onClick={() => onChange(NOT_A_CARD)}
+      className="chip"
+      style={
+        !isCardAccount(value)
+          ? {
+              color: "var(--color-mint)",
+              borderColor: "color-mix(in srgb, var(--color-mint) 40%, transparent)",
+              background: "color-mix(in srgb, var(--color-mint) 12%, transparent)",
+            }
+          : undefined
+      }
+    >
+      <Wallet className="h-3.5 w-3.5" />
+      Ordinary bill
+    </button>
+    {CARD_ACCOUNTS.map(({ id, short, hue }) => {
+      const active = value === id;
+      return (
+        <button
+          key={id}
+          type="button"
+          data-active={active}
+          onClick={() => onChange(id)}
+          className="chip"
+          style={
+            active
+              ? {
+                  color: hue,
+                  borderColor: `color-mix(in srgb, ${hue} 40%, transparent)`,
+                  background: `color-mix(in srgb, ${hue} 12%, transparent)`,
+                }
+              : undefined
+          }
+        >
+          <Card className="h-3.5 w-3.5" />
+          {short}
+        </button>
+      );
+    })}
+  </div>
+);
 
 const DUES_REF_KEY = "dues";
 
@@ -49,6 +109,9 @@ function snapshotToDues(snapshot) {
     amount: row.amount ?? 0,
     dueDate: row.dueDate ?? "",
     status: row.status ?? "pending",
+    // Set when the due is a card bill: paying it settles that card rather
+    // than counting as fresh spending.
+    account: row.account ?? "",
   }));
 }
 
@@ -71,16 +134,22 @@ const NextMonthDues = () => {
     name: "",
     amount: "",
     dueDate: "",
+    account: NOT_A_CARD,
   });
   const [duplicating, setDuplicating] = useState(false);
   // The due currently open in the edit sheet: { id, name, amount, dueDate }
   const [editDue, setEditDue] = useState(null);
+  // State rather than a ref: the persist effect below must not run until a
+  // render has actually carried the loaded list, and a ref would already read
+  // as "loaded" during the very commit that still holds the empty list.
+  const [loaded, setLoaded] = useState(false);
 
   // Subscribe to Firebase dues for this month (under user root)
   useEffect(() => {
     if (!firebaseDb) {
       const stored = localStorage.getItem(STORAGE_PREFIX + currentMonthKey);
       if (stored) setDues(JSON.parse(stored));
+      setLoaded(true);
       return;
     }
     if (!dataRoot) return;
@@ -94,15 +163,18 @@ const NextMonthDues = () => {
     return () => unsub();
   }, [currentMonthKey, dataRoot]);
 
-  // Persist to localStorage and sync to DuesContext when not using Firebase
+  // Persist to localStorage and sync to DuesContext when not using Firebase.
+  // Held back until the stored list has been read: this effect also runs on
+  // mount, and writing the empty initial state would erase what is on disk
+  // before the load above ever reaches it.
   useEffect(() => {
-    if (firebaseDb) return;
+    if (firebaseDb || !loaded) return;
     localStorage.setItem(
       STORAGE_PREFIX + currentMonthKey,
       JSON.stringify(dues)
     );
     setDuesFromLocal(dues);
-  }, [currentMonthKey, dues, setDuesFromLocal]);
+  }, [currentMonthKey, dues, loaded, setDuesFromLocal]);
 
   const formatAmount = (amount) => {
     return new Intl.NumberFormat("en-IN", {
@@ -156,6 +228,7 @@ const NextMonthDues = () => {
       amount,
       dueDate: newDue.dueDate,
       status: "pending",
+      account: newDue.account || NOT_A_CARD,
     };
     if (firebaseDb && dataRoot) {
       const duesRef = ref(
@@ -166,7 +239,7 @@ const NextMonthDues = () => {
     } else if (!firebaseDb) {
       setDues((prev) => [...prev, { id: Date.now().toString(), ...payload }]);
     }
-    setNewDue({ name: "", amount: "", dueDate: "" });
+    setNewDue({ name: "", amount: "", dueDate: "", account: NOT_A_CARD });
     setShowAddForm(false);
   };
 
@@ -178,6 +251,7 @@ const NextMonthDues = () => {
       name: due.name,
       amount: String(due.amount ?? ""),
       dueDate: due.dueDate ?? "",
+      account: due.account ?? NOT_A_CARD,
     });
   };
 
@@ -187,7 +261,11 @@ const NextMonthDues = () => {
     const amount = toNumber(editDue.amount);
     if (amount <= 0 || !editDue.dueDate) return;
 
-    const patch = { amount, dueDate: editDue.dueDate };
+    const patch = {
+      amount,
+      dueDate: editDue.dueDate,
+      account: editDue.account || NOT_A_CARD,
+    };
 
     if (firebaseDb && dataRoot) {
       const dueRef = ref(
@@ -254,6 +332,7 @@ const NextMonthDues = () => {
             amount: due.amount,
             dueDate: d.toISOString().split("T")[0],
             status: "pending",
+            account: due.account ?? NOT_A_CARD,
           };
         });
       setDues((prev) => [...prev, ...newDues]);
@@ -297,6 +376,7 @@ const NextMonthDues = () => {
           amount: row.amount ?? 0,
           dueDate,
           status: "pending",
+          account: row.account ?? NOT_A_CARD,
         });
         count += 1;
       }
@@ -482,6 +562,18 @@ const NextMonthDues = () => {
               className="field tnum"
             />
           </div>
+          <div>
+            <label className="eyebrow mb-2 block">What is this?</label>
+            <CardPicker
+              value={newDue.account}
+              onChange={(account) => setNewDue((prev) => ({ ...prev, account }))}
+            />
+            <p className="mt-2 text-[11px] text-low">
+              {isCardAccount(newDue.account)
+                ? `Settles ${accountById(newDue.account).short}. Paying it clears the card instead of counting as new spending — the swipes are already counted.`
+                : "Counts as spending when you mark it paid."}
+            </p>
+          </div>
           <div className="flex gap-2 pt-1">
             <button type="submit" className="btn btn-accent flex-1 py-3">
               Add due
@@ -531,6 +623,20 @@ const NextMonthDues = () => {
                 }
                 className="field tnum"
               />
+            </div>
+            <div>
+              <label className="eyebrow mb-2 block">What is this?</label>
+              <CardPicker
+                value={editDue.account}
+                onChange={(account) =>
+                  setEditDue((prev) => ({ ...prev, account }))
+                }
+              />
+              <p className="mt-2 text-[11px] text-low">
+                {isCardAccount(editDue.account)
+                  ? `Settles ${accountById(editDue.account).short} instead of counting as new spending.`
+                  : "Counts as spending when marked paid."}
+              </p>
             </div>
             <div className="flex gap-2 pt-1">
               <button
@@ -612,6 +718,19 @@ const NextMonthDues = () => {
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-low">
                     <span className="tnum">{formatDate(due.dueDate)}</span>
+                    {/* A card due settles the card rather than being spending
+                        of its own — worth saying on the row itself. */}
+                    {isCardAccount(due.account) && (
+                      <span
+                        className="badge"
+                        style={{
+                          color: accountById(due.account).hue,
+                          background: `color-mix(in srgb, ${accountById(due.account).hue} 12%, transparent)`,
+                        }}
+                      >
+                        settles {accountById(due.account).short}
+                      </span>
+                    )}
                     {isPaid ? (
                       <span className="badge bg-mint/12 text-mint">Paid</span>
                     ) : (

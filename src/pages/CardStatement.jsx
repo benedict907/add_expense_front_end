@@ -6,6 +6,8 @@ import {
   currencyExact,
   formatMonth,
   UNASSIGNED,
+  countsTowardOwner,
+  ownerAmount,
 } from "../context/CreditCardContext";
 import Reveal from "../components/Reveal";
 import TransactionList from "../components/creditcards/TransactionList";
@@ -56,12 +58,10 @@ const StatementBody = ({ cardId }) => {
   const hue = cardHue(cardId);
 
   const byOwner = {};
-  rows
-    .filter((t) => ["PURCHASE", "EMI", "FEE", "INTEREST"].includes(t.transactionType))
-    .forEach((txn) => {
-      const key = txn.ownerId || UNASSIGNED;
-      byOwner[key] = (byOwner[key] || 0) + (Number(txn.amount) || 0);
-    });
+  rows.filter(countsTowardOwner).forEach((txn) => {
+    const key = txn.ownerId || UNASSIGNED;
+    byOwner[key] = (byOwner[key] || 0) + ownerAmount(txn);
+  });
 
   const reconciled = statement?.reconciliation === "RECONCILED";
   const mismatch = statement?.reconciliation === "MISMATCH";
