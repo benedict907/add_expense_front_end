@@ -1,11 +1,31 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useCreditCards,
   currency,
+  ownerAmount,
   UNASSIGNED,
 } from "../../context/CreditCardContext";
-import { Card, Alert } from "../Icons";
+import { Card, Alert, Copy, Check } from "../Icons";
+
+/** YYYY-MM-DD from an ISO timestamp, in local time so the date never shifts. */
+const isoDate = (iso) => {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso).slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+/** Tab-separated so a paste into Google Sheets lands one column per field. */
+const statementToClipboardText = (transactions) =>
+  transactions
+    .slice()
+    .sort((a, b) => (a.transactionDate || "").localeCompare(b.transactionDate || ""))
+    .map((txn) => [isoDate(txn.transactionDate), txn.description, ownerAmount(txn).toFixed(2)].join("\t"))
+    .join("\n");
 
 /** Stable per-card accent so a card keeps its colour across the dashboard. */
 const HUES = [
@@ -24,14 +44,25 @@ export const cardHue = (cardId = "") => {
 };
 
 const CardTile = ({ summary }) => {
-  const { ownersById, selectedMonth } = useCreditCards();
+  const { ownersById, selectedMonth, monthTransactions } = useCreditCards();
   const { card, statement, total, byOwner, unassignedCount } = summary;
   const hue = cardHue(card.id);
   const unassignedAmount = byOwner[UNASSIGNED] || 0;
+  const [copied, setCopied] = useState(false);
 
   const ownerRows = Object.entries(byOwner)
     .filter(([ownerId]) => ownerId !== UNASSIGNED)
     .sort((a, b) => b[1] - a[1]);
+
+  const cardTransactions = monthTransactions.filter((txn) => txn.cardId === card.id);
+
+  const copyStatement = async () => {
+    const text = statementToClipboardText(cardTransactions);
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <article className="card card-hover flex h-full flex-col overflow-hidden">
@@ -57,6 +88,16 @@ const CardTile = ({ summary }) => {
               {card.lastFourDigits ? ` ·  ${card.lastFourDigits}` : ""}
             </p>
           </div>
+          {cardTransactions.length > 0 && (
+            <button
+              type="button"
+              onClick={copyStatement}
+              title="Copy statement (paste into Google Sheets)"
+              className="btn btn-soft grid h-8 w-8 shrink-0 place-items-center !p-0"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          )}
         </div>
 
         <p className="eyebrow mt-4">Current statement</p>
