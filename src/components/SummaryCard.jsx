@@ -31,7 +31,6 @@ const SummaryCard = () => {
     totalIncome,
     spentOnCards,
     balance,
-    bankBalance,
     cardOutstanding,
     outstandingByCard,
     categorySpending,
@@ -127,24 +126,6 @@ const SummaryCard = () => {
             }`}
           >
             <AnimatedNumber value={balance} format={currency} duration={1100} />
-          </p>
-
-          {/* The big number is cash less what the cards will claim back. Both
-              halves are spelled out so it never looks like money appeared or
-              vanished. */}
-          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-low">
-            <span className="tnum">
-              {currency(bankBalance)} <span className="text-low">in bank</span>
-            </span>
-            {cardOutstanding !== 0 && (
-              <>
-                <span aria-hidden>−</span>
-                <span className="tnum text-amber">
-                  {currency(cardOutstanding)}{" "}
-                  <span className="text-low">owed on cards</span>
-                </span>
-              </>
-            )}
           </p>
 
           <div className="mt-4 flex items-center gap-2.5">

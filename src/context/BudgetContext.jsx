@@ -231,9 +231,9 @@ export const BudgetProvider = ({ children }) => {
     monthKey: currentMonthKey,
   });
 
-  // `balance` is what the dashboard leads with, and it stays the honest
-  // headline: cash you hold, less what the cards will claim back.
-  const balance = safeToSpend;
+  // `balance` is what the dashboard leads with: the cash you hold. Card
+  // outstanding is shown separately and is not deducted from it.
+  const balance = bankBalance;
 
   // Check if category is over budget
   const isOverBudget = (category) => {
