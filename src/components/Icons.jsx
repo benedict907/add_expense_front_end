@@ -213,6 +213,14 @@ export const Inbox = (p) => (
   </Svg>
 );
 
+export const HandCoins = (p) => (
+  <Svg {...p}>
+    <circle cx="15.5" cy="6.5" r="3" />
+    <path d="M3 14h3l3.5-1.5H13a1.5 1.5 0 0 1 0 3h-2.5" />
+    <path d="M13 15.5h3.2l3.6-2.4a1.4 1.4 0 0 1 1.7 2.2L16.5 19.5H9l-3-1.5H3" />
+  </Svg>
+);
+
 /** Maps a spend category to its icon + accent hue. */
 export const categoryVisual = (category = "") => {
   const key = category.toLowerCase();

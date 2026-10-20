@@ -5,6 +5,7 @@ import BudgetDashboard from "../pages/BudgetDashboard";
 import CreditCardDashboard from "../pages/CreditCardDashboard";
 import CardStatement from "../pages/CardStatement";
 import CreditCardLayout from "../pages/CreditCardLayout";
+import LoansPage from "../pages/LoansPage";
 import App from "../App";
 import Loader from "../Loader";
 import { useAuth } from "../context/AuthContext";
@@ -30,6 +31,7 @@ const ProtectedApp = () => {
     <Routes>
       <Route path="/" element={<BudgetDashboard />} />
       <Route path="/add" element={<App />} />
+      <Route path="/loans" element={<LoansPage />} />
       {/* Credit-card module — separate data, separate pages, one shared
           provider so the selected month survives navigation between them. */}
       <Route element={<CreditCardLayout />}>

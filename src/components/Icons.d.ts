@@ -18,6 +18,7 @@ export const Clock: Icon;
 export const Target: Icon;
 export const Receipt: Icon;
 export const Card: Icon;
+export const HandCoins: Icon;
 export const Basket: Icon;
 export const Layers: Icon;
 export const Bell: Icon;

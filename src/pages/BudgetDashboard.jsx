@@ -22,6 +22,7 @@ import {
   TrendDown,
   Alert,
   Card as CardIcon,
+  HandCoins,
 } from "../components/Icons";
 
 const currency0 = (n) =>
@@ -234,6 +235,15 @@ const BudgetDashboard = () => {
                 >
                   <CardIcon className="h-4 w-4" />
                   <span className="hidden sm:inline">Cards</span>
+                </Link>
+                {/* Money lent to people. */}
+                <Link
+                  to="/loans"
+                  className="btn btn-soft px-3.5 py-2 text-[13px]"
+                  title="Loans"
+                >
+                  <HandCoins className="h-4 w-4" />
+                  <span className="hidden sm:inline">Loans</span>
                 </Link>
                 <Link to="/add" className="btn btn-accent px-3.5 py-2 text-[13px]">
                   <Plus className="h-4 w-4" />
